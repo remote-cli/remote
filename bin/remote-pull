@@ -1,0 +1,14 @@
+#!/bin/bash
+me=`which $0`
+source `dirname $me`/remote-common
+remote_host=`get_remote_host`
+remote_command_dir=`get_remote_command_directory`
+if [ -z $1 ]
+then
+  echo "Pulling entire remote directory in..."
+  rsync -avz $remote_host:$remote_command_dir .
+else
+  ensure_synced
+  rsync -avz $remote_host:$remote_command_dir/$1 .
+fi
+

@@ -1,0 +1,8 @@
+#!/bin/bash
+me=`which $0`
+source `dirname $me`/remote-common
+local_dir=`get_local_directory`
+for ignore in "$@"
+do
+  echo $ignore >> $local_dir/.remoteignore
+done

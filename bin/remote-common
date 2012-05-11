@@ -1,0 +1,95 @@
+#!/bin/bash
+NULL_LOCAL_DIRECTORY="__null__"
+
+get_md5()
+{
+  which md5 > /dev/null
+  if [ $? == 0 ]
+  then
+    echo "md5"
+    return
+  fi
+  which md5sum > /dev/null
+  if [ $? == 0 ]
+  then
+    echo "md5sum"
+    return
+  fi
+}
+
+# Finds the directory in this tree that has remote-ing set up.
+get_local_directory()
+{
+  if [ -f .remote ]
+  then
+    pwd
+  else
+    if [ `pwd` = "/" ]
+      then 
+        echo "Could not find any remote-enabled directory set up in this tree"
+        echo "Exiting..."
+        exit 1 
+    else
+      pushd ../ > /dev/null
+      get_local_directory
+      popd > /dev/null
+    fi
+  fi
+}
+
+# Returns the remote directory where the command needs to be executed
+get_remote_command_directory()
+{
+  local this_dir=`pwd`
+  local root_dir=`get_local_directory`
+  diff=`echo $this_dir | sed s:$root_dir::`
+  echo `get_remote_directory`/$diff
+}
+
+
+# Returns the remote directory that would map to the current local directory
+# Only used during remote-init if no remote directory is specified
+get_remote_init_directory()
+{
+  local local_dir=`pwd`
+  local md5_exec=`get_md5`
+  remote_directory=`$md5_exec -s $local_dir | cut -d '=' -f 2 | sed 's/^ //'`
+  echo .remotes/$remote_directory
+}
+
+get_remote_directory()
+{
+  local_dir=`get_local_directory`
+  cat $local_dir/.remote | cut -d ":" -f 2 
+}
+
+get_remote_host()
+{
+  cat `get_local_directory`/.remote | cut -d ":" -f 1
+}
+  
+get_ignores()
+{
+  pattern='--exclude=.remote --exclude=.remoteignore '
+  if [ -f .remoteignore ]
+  then
+    awk 'BEGIN {pattern = "--exclude=.remote --exclude=.remoteignore "} {pattern = pattern "--exclude="$1" "} END {print pattern}' .remoteignore
+  else
+    echo $pattern
+  fi
+}
+
+ensure_synced()
+{
+  remote_host=`get_remote_host`
+  remote_dir=`get_remote_directory`
+  local_dir=`get_local_directory`
+  pushd $local_dir > /dev/null
+  if [ -z "$1" ]
+  then
+    rsync ./ -az --delete `get_ignores` ./ $remote_host:$remote_dir
+  else
+    rsync ./ -avz --delete `get_ignores` ./ $remote_host:$remote_dir
+  fi
+  popd > /dev/null
+}

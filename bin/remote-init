@@ -1,0 +1,20 @@
+#!/bin/bash
+me=`which $0`
+source `dirname $me`/remote-common
+if [ -z $1 ]
+then
+  echo "Usage: remote-init host-name[:remote_dir]"
+  exit 1
+else
+  if [[ "$1" == *:* ]]
+  then
+    remote_host=`echo $1 | cut -d ":" -f 1`
+    remote_directory=`echo $1 | cut -d ":" -f 2`
+  else
+    remote_host=$1
+    remote_directory=`get_remote_init_directory`
+  fi
+fi
+#ssh $remote_host "mkdir -p $remote_directory"
+echo $remote_host:$remote_directory > .remote
+echo "Created remote directory at $remote_host:$remote_directory"

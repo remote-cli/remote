@@ -1,0 +1,13 @@
+1.1.1
+---
+* Robust in finding appropriate md5 utility
+ 
+1.1
+---
+* Added remote-pull
+* Moved remote-sync to remote-push
+
+1.0
+---
+* First drop
+

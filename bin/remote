@@ -1,0 +1,10 @@
+#!/bin/bash
+me=`which $0`
+source `dirname $me`/remote-common
+local_dir=`get_local_directory`
+remote_host=`get_remote_host`
+remote_dir=`get_remote_directory`
+remote_command_dir=`get_remote_command_directory`
+ensure_synced
+command=$@
+ssh -tq $remote_host "source ~/.bash_profile; cd $remote_command_dir; $command"
