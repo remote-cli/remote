@@ -1,3 +1,8 @@
+1.1.2
+---
+* More fixes to md5 generation (verified to work on mac and linux)
+* Silent ssh connections for reduced verbosity
+
 1.1.1
 ---
 * Robust in finding appropriate md5 utility
