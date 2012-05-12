@@ -7,4 +7,4 @@ remote_dir=`get_remote_directory`
 remote_command_dir=`get_remote_command_directory`
 ensure_synced
 command=$@
-ssh -tq $remote_host "source ~/.bash_profile; cd $remote_command_dir; $command"
+ssh -tq $remote_host "source ~/.bash_profile 2>/dev/null 1>/dev/null; cd $remote_command_dir; $command"

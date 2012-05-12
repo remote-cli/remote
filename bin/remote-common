@@ -1,18 +1,20 @@
 #!/bin/bash
 NULL_LOCAL_DIRECTORY="__null__"
 
-get_md5()
+#performs md5 of string passed in
+#uses md5 or md5sum depending on what it finds
+do_md5()
 {
-  which md5 > /dev/null
+  which md5 2>/dev/null 1>/dev/null
   if [ $? == 0 ]
   then
-    echo "md5"
+    echo $@ | md5
     return
   fi
-  which md5sum > /dev/null
+  which md5sum 2>/dev/null 1>/dev/null
   if [ $? == 0 ]
   then
-    echo "md5sum"
+    echo $@ | md5sum | sed 's/^\(.*\) .*$/\1/'
     return
   fi
 }
@@ -52,8 +54,7 @@ get_remote_command_directory()
 get_remote_init_directory()
 {
   local local_dir=`pwd`
-  local md5_exec=`get_md5`
-  remote_directory=`$md5_exec -s $local_dir | cut -d '=' -f 2 | sed 's/^ //'`
+  remote_directory=`do_md5 $local_dir`
   echo .remotes/$remote_directory
 }
 
@@ -87,9 +88,9 @@ ensure_synced()
   pushd $local_dir > /dev/null
   if [ -z "$1" ]
   then
-    rsync ./ -az --delete `get_ignores` ./ $remote_host:$remote_dir
+    rsync -az -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
   else
-    rsync ./ -avz --delete `get_ignores` ./ $remote_host:$remote_dir
+    rsync -avz -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
   fi
   popd > /dev/null
 }
