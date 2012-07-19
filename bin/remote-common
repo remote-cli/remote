@@ -88,9 +88,9 @@ ensure_synced()
   pushd $local_dir > /dev/null
   if [ -z "$1" ]
   then
-    rsync -az -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
+    rsync -aLz -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
   else
-    rsync -avz -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
+    rsync -avLz -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
   fi
   popd > /dev/null
 }
