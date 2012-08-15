@@ -2,4 +2,3 @@
 me=`which $0`
 source `dirname $me`/remote-common
 ensure_synced "verbose"
-

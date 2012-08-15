@@ -61,12 +61,35 @@ get_remote_init_directory()
 get_remote_directory()
 {
   local_dir=`get_local_directory`
-  cat $local_dir/.remote | cut -d ":" -f 2 
+  if [ "x$REMOTE_HOST_INDEX" == "x" ]
+  then
+  if [ -e $local_dir/.remoteindex ]
+  then
+    lineNo=`cat $local_dir/.remoteindex`
+  else
+    lineNo=1
+  fi
+  else
+    lineNo=$REMOTE_HOST_INDEX
+  fi
+  sed -n "${lineNo}{p;q;}" $local_dir/.remote | cut -d ":" -f 2
 }
 
 get_remote_host()
 {
-  cat `get_local_directory`/.remote | cut -d ":" -f 1
+  local_dir=`get_local_directory`
+  if [ "x$REMOTE_HOST_INDEX" == "x" ]
+  then
+    if [ -e $local_dir/.remoteindex ]
+          then
+            lineNo=`cat $local_dir/.remoteindex`
+          else
+            lineNo=1
+          fi
+  else
+    lineNo=$REMOTE_HOST_INDEX
+  fi
+  sed -n "${lineNo}{p;q;}" $local_dir/.remote | cut -d ":" -f 1
 }
   
 get_ignores()
@@ -88,9 +111,10 @@ ensure_synced()
   pushd $local_dir > /dev/null
   if [ -z "$1" ]
   then
-    rsync -aLz -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
+    rsync -az --safe-links -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
   else
-    rsync -avLz -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
+    echo "syncing to $remote_host:$remote_dir"
+    rsync -avz --safe-links -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
   fi
   popd > /dev/null
 }

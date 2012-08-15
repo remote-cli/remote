@@ -1,0 +1,10 @@
+#!/bin/bash
+me=`which $0`
+source `dirname $me`/remote-common
+local_dir=`get_local_directory`
+num_hosts=`cat $local_dir/.remote | wc -l`
+for ((i=1;i<=$num_hosts;++i))
+do
+  REMOTE_ALLOC_TTY="false" REMOTE_HOST_INDEX=$i `dirname $me`/remote $@ &
+done
+wait

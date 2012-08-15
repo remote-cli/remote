@@ -1,0 +1,11 @@
+#!/bin/sh
+me=`which $0`
+source `dirname $me`/remote-common
+local_dir=`get_local_directory`
+num_hosts=`cat $local_dir/.remote | wc -l`
+for ((i=1;i<=$num_hosts;++i))
+do
+  remote_host=`REMOTE_HOST_INDEX=$i get_remote_host`
+  REMOTE_HOST_INDEX=$i `dirname $me`/remote-push | sed "s/^/$remote_host: /" &
+done
+wait

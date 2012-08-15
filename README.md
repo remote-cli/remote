@@ -2,10 +2,11 @@ remote
 ======
 
 Work with remote hosts seamlessly
-Remote uses rsync and ssh to create a seamless working environment from a local directory to a remote directory. 
+Remote uses rsync and ssh to create a seamless working environment from a local directory to remote directories. 
 Most used features are:
 * Remotely execute commands from any sub-directory. 
 * Drop into remote interactive sessions.
+* Fire off parallel remote commands on multiple hosts.
 
 Executables and purpose
 * remote-init: set up a local directory to point to a remote directory
@@ -14,10 +15,8 @@ Executables and purpose
 * remote-pull: pull a directory from remote to local
 * remote: execute a command remotely, after first syncing the local tree with the remote tree
 * remote-quick: execute a command remotely, without syncing the trees
-
-Wish-List
---------
-* Support for setting up multiple remote directories to mirror a local directory
+* remote-add: add another remote host to the mirror list
+* mremote: execute a remote command on all the hosts, after first syncing the local tree with the remote trees
 
 Build a package
 ---------------
