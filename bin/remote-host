@@ -1,0 +1,4 @@
+#!/bin/bash
+me=`which $0`
+echo `remote-set | awk '/^* .*$/ {print $2}'`
+

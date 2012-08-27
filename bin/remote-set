@@ -1,0 +1,11 @@
+#!/bin/bash
+me=`which $0`
+source `dirname $me`/remote-common
+local_dir=`get_local_directory`
+if [ -z $1 ]
+then
+  cat $local_dir/.remote | cut -d ":" -f 1
+else
+  echo $1 > $local_dir/.remoteindex
+fi
+echo "Remote host is set to " `get_remote_host`
