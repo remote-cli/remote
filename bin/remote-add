@@ -5,23 +5,23 @@ if [ -z $1 ]
 then
   echo "Usage: remote-add host-name[:remote_dir]"
   exit 1
+fi
+local_dir=`get_local_directory`
+if [[ "$1" == *:* ]]
+then
+  remote_host=`echo $1 | cut -d ":" -f 1`
+  remote_directory=`echo $1 | cut -d ":" -f 2`
 else
-  if [[ "$1" == *:* ]]
-  then
-    remote_host=`echo $1 | cut -d ":" -f 1`
-    remote_directory=`echo $1 | cut -d ":" -f 2`
-  else
-    remote_host=$1
-    remote_directory=`get_remote_init_directory`
-  fi
+  remote_host=$1
+  remote_directory=.remotes/`do_md5 $local_dir`
 fi
 #check if this combination already exists in the .remote file
-egrep -v "^$remote_host:$remote_directory$" .remote 1>/dev/null 2>/dev/null
+egrep -v "^$remote_host:$remote_directory$" $local_dir/.remote 1>/dev/null 2>/dev/null
 if [ $? == '1' ]
 then
   echo "remote directory already exists"
 else
   ssh -tq $remote_host "if [ -z ~/.bash_profile ]; then source ~/.bash_profile; fi; mkdir -p $remote_directory"
-  echo $remote_host:$remote_directory >> .remote
+  echo $remote_host:$remote_directory >> $local_dir/.remote
   echo "Created remote directory at $remote_host:$remote_directory"
 fi

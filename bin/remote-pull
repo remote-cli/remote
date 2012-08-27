@@ -8,6 +8,9 @@ then
   echo "Pulling entire remote directory in..."
   rsync -avz $remote_host:$remote_command_dir .
 else
-  rsync -avz $remote_host:$remote_command_dir/$1 .
+  for remote in "$@"
+  do
+    rsync -avz $remote_host:$remote_command_dir/$remote .
+  done
 fi
 

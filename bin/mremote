@@ -1,10 +1,35 @@
 #!/bin/bash
+populate_screen()
+{
+  echo 'shell -${SHELL}' >> $1
+  echo 'caption always "%n(%t) : %C"' >> $1
+  echo 'defscrollback 1024' >> $1
+  echo 'startup_message off' >> $1
+  echo 'hardstatus on' >> $1
+  echo 'hardstatus alwayslastline' >> $1
+}
+
+
 me=`which $0`
 source `dirname $me`/remote-common
 local_dir=`get_local_directory`
 num_hosts=`cat $local_dir/.remote | wc -l`
+tmp_files=""
+screen_file=`mktemp /tmp/mremote.XXXXXX`
+populate_screen $screen_file
+tmp_files=$screen_file
 for ((i=1;i<=$num_hosts;++i))
 do
-  REMOTE_ALLOC_TTY="false" REMOTE_HOST_INDEX=$i `dirname $me`/remote $@ &
+  bash_init_file=`mktemp /tmp/mremote.XXXXXX`
+  remote_host=`get_remote_host $i`
+  echo "REMOTE_ALLOC_TTY="false" REMOTE_HOST_INDEX=$i `dirname $me`/remote $@" > $bash_init_file
+  echo "screen -t "$remote_host" bash --init-file $bash_init_file" >> $screen_file
+  tmp_files="$tmp_files $bash_init_file"
 done
+cat $screen_file
+screen -c $screen_file
+#trap 'kill -9 $(jobs -pr)' SIGINT SIGTERM EXIT
 wait
+echo "removing tmp files"
+rm -f $tmp_files
+

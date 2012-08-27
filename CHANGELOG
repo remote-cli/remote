@@ -1,3 +1,8 @@
+1.2.1
+-----
+* New executables: remote-set, remote-host
+* mremote now uses screen
+
 1.2.0
 -----
 * Support for multiple-hosts

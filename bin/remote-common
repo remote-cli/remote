@@ -78,16 +78,21 @@ get_remote_directory()
 get_remote_host()
 {
   local_dir=`get_local_directory`
-  if [ "x$REMOTE_HOST_INDEX" == "x" ]
+  if [ -z $1 ]
   then
-    if [ -e $local_dir/.remoteindex ]
+          if [ "x$REMOTE_HOST_INDEX" == "x" ]
           then
-            lineNo=`cat $local_dir/.remoteindex`
+            if [ -e $local_dir/.remoteindex ]
+                  then
+                    lineNo=`cat $local_dir/.remoteindex`
+                  else
+                    lineNo=1
+                  fi
           else
-            lineNo=1
+            lineNo=$REMOTE_HOST_INDEX
           fi
   else
-    lineNo=$REMOTE_HOST_INDEX
+    lineNo=$1
   fi
   sed -n "${lineNo}{p;q;}" $local_dir/.remote | cut -d ":" -f 1
 }
@@ -111,10 +116,10 @@ ensure_synced()
   pushd $local_dir > /dev/null
   if [ -z "$1" ]
   then
-    rsync -az --safe-links -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
+    rsync -az --copy-unsafe-links -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
   else
     echo "syncing to $remote_host:$remote_dir"
-    rsync -avz --safe-links -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
+    rsync -avz --copy-unsafe-links -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
   fi
   popd > /dev/null
 }

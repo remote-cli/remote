@@ -4,8 +4,15 @@ source `dirname $me`/remote-common
 local_dir=`get_local_directory`
 if [ -z $1 ]
 then
-  cat $local_dir/.remote | cut -d ":" -f 1
+  remote_host=`get_remote_host`
+  cat $local_dir/.remote | cut -d ":" -f 1 | sed "s/^$remote_host/* $remote_host/g"
 else
-  echo $1 > $local_dir/.remoteindex
+  num_lines=`wc -l $local_dir/.remote | awk '{print $1}'`
+  if (($num_lines < $1))
+  then
+    echo "Only have $num_lines hosts to choose from!!"
+  else
+    echo $1 > $local_dir/.remoteindex
+  fi
+  echo "Remote host is set to " `get_remote_host`
 fi
-echo "Remote host is set to " `get_remote_host`
