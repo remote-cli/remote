@@ -116,10 +116,16 @@ ensure_synced()
   pushd $local_dir > /dev/null
   if [ -z "$1" ]
   then
-    rsync -az --copy-unsafe-links -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
+      rsync -az --copy-unsafe-links -e "ssh -q" --delete --delete-after --force `get_ignores` ./ $remote_host:$remote_dir
   else
-    echo "syncing to $remote_host:$remote_dir"
-    rsync -avz --copy-unsafe-links -e "ssh -q" --delete `get_ignores` ./ $remote_host:$remote_dir
+          if [ -z "$2" ]
+          then
+            echo "syncing to $remote_host:$remote_dir"
+            rsync -avz --copy-unsafe-links -e "ssh -q" --delete --delete-after --delete-excluded --force `get_ignores` ./ $remote_host:$remote_dir
+          else
+            echo "dry run for syncing to $remote_host:$remote_dir"
+            rsync -avvnz --copy-unsafe-links -e "ssh -q" --delete --delete-after --delete-excluded --force `get_ignores` ./ $remote_host:$remote_dir
+          fi
   fi
   popd > /dev/null
 }

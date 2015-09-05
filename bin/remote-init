@@ -15,6 +15,6 @@ else
     remote_directory=`get_remote_init_directory`
   fi
 fi
-ssh -tq $remote_host "source ~/.bash_profile; mkdir -p $remote_directory"
+ssh -tqK $remote_host "source ~/.bash_profile; mkdir -p $remote_directory"
 echo $remote_host:$remote_directory > .remote
 echo "Created remote directory at $remote_host:$remote_directory"

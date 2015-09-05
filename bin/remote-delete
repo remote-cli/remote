@@ -5,4 +5,3 @@ remote_directory=`get_remote_directory`
 remote_host=`get_remote_host`
 ssh $remote_host "rm -rf $remote_directory"
 echo "Deleted remote directory at $remote_host:$remote_directory"
-
