@@ -1,4 +1,5 @@
 #!/bin/bash
 me=`which $0`
 source `dirname $me`/remote-common
+verify_setup
 ensure_synced "verbose"

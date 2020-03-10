@@ -129,3 +129,12 @@ ensure_synced()
   fi
   popd > /dev/null
 }
+
+verify_setup()
+{
+  #check that local directory for .remote is found
+  local_directory=`get_local_directory` || {
+    echo "Failed to find a local remote directory. Did you remote-init yet?"
+    exit 1
+  }
+}

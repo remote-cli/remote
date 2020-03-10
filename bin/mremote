@@ -12,6 +12,7 @@ populate_screen()
 
 me=`which $0`
 source `dirname $me`/remote-common
+verify_setup
 local_dir=`get_local_directory`
 num_hosts=`cat $local_dir/.remote | wc -l`
 tmp_files=""

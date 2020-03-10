@@ -1,3 +1,7 @@
+1.2.2
+-----
+* Fail fast when local directory is not setup for remote
+
 1.2.1
 -----
 * New executables: remote-set, remote-host

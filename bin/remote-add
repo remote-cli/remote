@@ -1,6 +1,7 @@
 #!/bin/bash
 me=`which $0`
 source `dirname $me`/remote-common
+verify_setup
 if [ -z $1 ]
 then
   echo "Usage: remote-add host-name[:remote_dir]"

@@ -1,6 +1,7 @@
 #!/bin/bash
 me=`which $0`
 source `dirname $me`/remote-common
+verify_setup
 local_dir=`get_local_directory`
 for ignore in "$@"
 do
