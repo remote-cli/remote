@@ -10,7 +10,7 @@ ensure_synced
 command=$@
 if [ -z $REMOTE_ALLOC_TTY ]
 then
-  ssh -tq $remote_host "source ~/.bash_profile 2>/dev/null 1>/dev/null; cd $remote_command_dir; $command"
+  ssh -tKq $remote_host "source ~/.bash_profile 2>/dev/null 1>/dev/null; cd $remote_command_dir; $command"
 else
-  ssh -q $remote_host "source ~/.bash_profile 2>/dev/null 1>/dev/null; cd $remote_command_dir; REMOTE_HOST_INDEX=$REMOTE_HOST_INDEX $command" 2>&1 | tee /tmp/$remote_host.log
+  ssh -Kq $remote_host "source ~/.bash_profile 2>/dev/null 1>/dev/null; cd $remote_command_dir; REMOTE_HOST_INDEX=$REMOTE_HOST_INDEX $command" 2>&1 | tee /tmp/$remote_host.log
 fi

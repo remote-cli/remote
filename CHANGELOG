@@ -1,6 +1,7 @@
 1.2.2
 -----
 * Fail fast when local directory is not setup for remote
+* Support kerberos auth (through ssh -K)
 
 1.2.1
 -----
