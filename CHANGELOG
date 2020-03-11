@@ -1,3 +1,7 @@
+1.2.3
+-----
+* Support for initializing environment per remoted directory through .remoteenv file
+
 1.2.2
 -----
 * Fail fast when local directory is not setup for remote
