@@ -6,11 +6,29 @@ local_dir=`get_local_directory`
 remote_host=`get_remote_host`
 remote_dir=`get_remote_directory`
 remote_command_dir=`get_remote_command_directory`
+random_num=$((1 + RANDOM % 1000))
+cmd_file_name=.remote_cmd_${random_num}.sh
+rm -f $cmd_file_name
+cat <<EOT >> $cmd_file_name
+#delete myself first
+rm $cmd_file_name
+#source bash profile, ignore errors
+source ~/.bash_profile 2>/dev/null 1>/dev/null
+#source .remotenv, ignore errors
+source ~/$remote_dir/.remoteenv 2>/dev/null 1>/dev/null
+#drop into remote dir
+cd ~/$remote_command_dir
+#execute actual command... hope quoting works
+$(printf ' %q' "$@")
+EOT
+chmod a+x $cmd_file_name
+
 ensure_synced
-command=$@
 if [ -z $REMOTE_ALLOC_TTY ]
 then
-  ssh -tKq $remote_host "source ~/.bash_profile 2>/dev/null 1>/dev/null; pushd $remote_dir > /dev/null; source .remoteenv 2>/dev/null 1>/dev/null; popd > /dev/null; cd $remote_command_dir; $command"
+  ssh -tKq $remote_host "cd $remote_command_dir; ./$cmd_file_name"
 else
-  ssh -Kq $remote_host "source ~/.bash_profile 2>/dev/null 1>/dev/null; cd $remote_command_dir; REMOTE_HOST_INDEX=$REMOTE_HOST_INDEX $command" 2>&1 | tee /tmp/$remote_host.log
+  ssh -Kq $remote_host "cd $remote_command_dir; REMOTE_HOST_INDEX=$REMOTE_HOST_INDEX ./$cmd_file_name" 2>&1 | tee /tmp/$remote_host.log
 fi
+#cleanup local cmd file
+rm -f $cmd_file_name
