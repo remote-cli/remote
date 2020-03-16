@@ -1,3 +1,7 @@
+1.2.5
+-----
+* Support for adding .remote related files to .gitignore
+
 1.2.4
 -----
 * More robust parameter parsing
