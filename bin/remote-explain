@@ -14,8 +14,7 @@ remote_command_dir=`get_remote_command_directory`
 if [ -f "$local_dir/.remoteignore" ];
 then
   echo "Remote ignores: hosted at $local_dir/.remoteignore"
-  cat $local_dir/.remoteignore
-  echo "------- ignores end>"
+  cat $local_dir/.remoteignore | sed 's/^/  - /'
 else
   echo "Remote ignores: none"
 fi
