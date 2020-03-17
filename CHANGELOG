@@ -1,3 +1,7 @@
+1.2.6
+-----
+* Support for remote-explain, a tool to explain your remote setup
+
 1.2.5
 -----
 * Support for adding .remote related files to .gitignore

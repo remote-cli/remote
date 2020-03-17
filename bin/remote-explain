@@ -1,0 +1,36 @@
+#!/bin/bash
+me=`which $0`
+source `dirname $me`/remote-common
+verify_setup
+echo "Remote Configuration"
+echo "********************"
+local_dir=`get_local_directory`
+echo "Local Directory: $local_dir"
+remote_host=`get_remote_host`
+echo "Remote Host: $remote_host"
+remote_dir=`get_remote_directory`
+echo "Remote Directory: $remote_dir"
+remote_command_dir=`get_remote_command_directory`
+if [ -f "$local_dir/.remoteignore" ];
+then
+  echo "Remote ignores: hosted at $local_dir/.remoteignore"
+  cat $local_dir/.remoteignore
+  echo "------- ignores end>"
+else
+  echo "Remote ignores: none"
+fi
+echo "**************************"
+echo ""
+if [ -n "$1" ]; 
+then
+  cmd_file_name=.remote_cmd_explain.sh
+  generate_command $cmd_file_name $remote_dir $remote_command_dir "$@"
+  echo "remote would execute file $cmd_file_name that contains your command. Please clean it up later!"
+
+  if [ -z $REMOTE_ALLOC_TTY ]
+  then
+    echo "ssh -tKq $remote_host \"cd $remote_command_dir; ./$cmd_file_name\""
+  else
+    echo "ssh -Kq $remote_host \"cd $remote_command_dir; REMOTE_HOST_INDEX=$REMOTE_HOST_INDEX ./$cmd_file_name\" 2>&1 | tee /tmp/$remote_host.log"
+  fi
+fi

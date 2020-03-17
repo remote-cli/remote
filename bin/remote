@@ -8,21 +8,8 @@ remote_dir=`get_remote_directory`
 remote_command_dir=`get_remote_command_directory`
 random_num=$((1 + RANDOM % 1000))
 cmd_file_name=.remote_cmd_${random_num}.sh
-rm -f $cmd_file_name
-cat <<EOT >> $cmd_file_name
-#delete myself first
-rm $cmd_file_name
-#source bash profile, ignore errors
-source ~/.bash_profile 2>/dev/null 1>/dev/null
-#source .remotenv, ignore errors
-source ~/$remote_dir/.remoteenv 2>/dev/null 1>/dev/null
-#drop into remote dir
-cd ~/$remote_command_dir
-#execute actual command... hope quoting works
-$(printf ' %q' "$@")
-EOT
-chmod a+x $cmd_file_name
 
+generate_command $cmd_file_name $remote_dir $remote_command_dir "$@"
 ensure_synced
 if [ -z $REMOTE_ALLOC_TTY ]
 then

@@ -116,16 +116,25 @@ ensure_synced()
   pushd $local_dir > /dev/null
   if [ -z "$1" ]
   then
-      rsync -az --copy-unsafe-links -e "ssh -q" --delete --delete-after --force `get_ignores` ./ $remote_host:$remote_dir
+      rsync -az --copy-unsafe-links -e "ssh -q" --delete --delete-after --force `get_ignores` ./ $remote_host:$remote_dir || {
+        echo "Failed to rsync. Is remote host $remote_host reachable?"
+        exit 1
+      }
   else
           if [ -z "$2" ]
           then
             echo "syncing to $remote_host:$remote_dir"
-            rsync -avz --copy-unsafe-links -e "ssh -q" --delete --delete-after --delete-excluded --force `get_ignores` ./ $remote_host:$remote_dir
+            rsync -avz --copy-unsafe-links -e "ssh -q" --delete --delete-after --delete-excluded --force `get_ignores` ./ $remote_host:$remote_dir || {
+              echo "Failed to rsync. Is remote host $remote_host reachable?"
+              exit 1
+            }
           else
             echo "dry run for syncing to $remote_host:$remote_dir"
-            rsync -avvnz --copy-unsafe-links -e "ssh -q" --delete --delete-after --delete-excluded --force `get_ignores` ./ $remote_host:$remote_dir
-          fi
+            rsync -avvnz --copy-unsafe-links -e "ssh -q" --delete --delete-after --delete-excluded --force `get_ignores` ./ $remote_host:$remote_dir || {
+            echo "Failed to rsync. Is remote host $remote_host reachable?"
+              exit 1
+            }
+    fi
   fi
   popd > /dev/null
 }
@@ -138,3 +147,26 @@ verify_setup()
     exit 1
   }
 }
+
+generate_command()
+{
+  declare cmd_file_name="$1"
+  declare remote_dir="$2"
+  declare remote_command_dir="$3"
+  shift 3
+  rm -f $cmd_file_name
+  cat <<EOT >> $cmd_file_name
+#delete myself first
+rm $cmd_file_name
+#source bash profile, ignore errors
+source ~/.bash_profile 2>/dev/null 1>/dev/null
+#source .remotenv, ignore errors
+source ~/$remote_dir/.remoteenv 2>/dev/null 1>/dev/null
+#drop into remote dir
+cd ~/$remote_command_dir
+#execute actual command (escape special characters)
+$(printf ' %q' "$@")
+EOT
+  chmod a+x $cmd_file_name
+}
+
