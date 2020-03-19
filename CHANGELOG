@@ -1,3 +1,7 @@
+1.2.7
+-----
+* remote-explain supports -c flag to test connection to the remote host
+
 1.2.6
 -----
 * Support for remote-explain, a tool to explain your remote setup

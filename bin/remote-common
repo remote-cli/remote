@@ -148,6 +148,71 @@ verify_setup()
   }
 }
 
+# A spinner printer to the console
+spin() {
+  declare message=$1
+  declare pid=$2
+  local -a marks=( '/' '-' '\' '|' )
+  while kill -0 $pid 2>/dev/null; do
+     printf '  %s %s\r' "$message" "${marks[i++ % ${#marks[@]}]}"
+     sleep 1
+  done
+}
+
+verify_connection()
+{
+  declare remote_host="$1"
+  echo "Connection Stats for $remote_host"
+  # first test liveness
+  ping -c 1 $remote_host 2>/dev/null 1>/dev/null
+  if [ $? -eq 0 ]; then
+    echo "  - Host is alive"
+    #Test Latency with 5 pings
+    ping -c 5 $remote_host 2>.ping.err 1>.ping.out &
+    pid=$!
+    spin "Collecting latency measurements" $pid
+    awk '/transmitted/ || /round-trip/' .ping.out | sed 's/^/  - /'
+    rm -f .ping.err .ping.out
+    #Test Bandwidth
+    test_file=".data.out"
+    file_size=10024
+    dd if=/dev/urandom of=$test_file bs="$file_size"k count=1 &> /dev/null
+    scp -v $test_file $remote_host:$test_file 2>&1 | \
+      grep "Bytes per second" | \
+      sed "s/^[^0-9]*\([0-9.]*\)[^0-9]*\([0-9.]*\).*$/\1/g" > up_speed &
+    spin "Checking upload speed:" $!
+    up_speed=`cat up_speed`
+    rm -f up_speed
+    up_speed=`bytes_per_sec_to_printable_text $up_speed`
+    echo "  - Upload speed:   $up_speed             "
+    scp -v $remote_host:$test_file $test_file 2>&1 | \
+      grep "Bytes per second" | \
+      sed "s/^[^0-9]*\([0-9.]*\)[^0-9]*\([0-9.]*\).*$/\2/g" > down_speed &
+    spin "Checking download speed:" $!
+    down_speed=`cat down_speed`
+    rm -f down_speed
+    down_speed=`bytes_per_sec_to_printable_text $down_speed`
+    echo "  - Download speed: $down_speed           "
+    rm -f $test_file
+    ssh -q $remote_host "rm -f $test_file"
+  else
+    echo "  - Host is unreachable"
+  fi
+}
+
+# Converts a bytes per second number to a printable rate (Kbps/Mbps etc)
+bytes_per_sec_to_printable_text()
+{
+  declare input_speed_Bps=$1
+  input_speed=$(echo "scale=2; $input_speed_Bps/125" | bc -l)
+  speed_units="Kbps"
+  if (( $(echo "$input_speed > 1000" | bc -l) )); then
+      input_speed=$(echo "scale=2; $input_speed/1000" | bc -l)
+      speed_units="Mb/s"
+  fi
+  echo "$input_speed $speed_units"
+}
+
 generate_command()
 {
   declare cmd_file_name="$1"

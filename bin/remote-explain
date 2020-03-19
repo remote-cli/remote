@@ -2,6 +2,15 @@
 me=`which $0`
 source `dirname $me`/remote-common
 verify_setup
+check_connection="false"
+while getopts ":c" opt; do
+  case ${opt} in
+    c ) check_connection="true"
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
 echo "Remote Configuration"
 echo "********************"
 local_dir=`get_local_directory`
@@ -17,6 +26,10 @@ then
   cat $local_dir/.remoteignore | sed 's/^/  - /'
 else
   echo "Remote ignores: none"
+fi
+if [[ $check_connection == "true" ]];
+then
+  verify_connection $remote_host
 fi
 echo "**************************"
 echo ""
