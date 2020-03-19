@@ -161,42 +161,51 @@ spin() {
 
 verify_connection()
 {
+  RED="\033[1;31m"
+  GREEN="\033[1;32m"
+  NOCOLOR="\033[0m"
   declare remote_host="$1"
+  declare connection_testing_depth="$2"
   echo "Connection Stats for $remote_host"
   # first test liveness
   ping -c 1 $remote_host 2>/dev/null 1>/dev/null
   if [ $? -eq 0 ]; then
-    echo "  - Host is alive"
-    #Test Latency with 5 pings
-    ping -c 5 $remote_host 2>.ping.err 1>.ping.out &
-    pid=$!
-    spin "Collecting latency measurements" $pid
-    awk '/transmitted/ || /round-trip/' .ping.out | sed 's/^/  - /'
-    rm -f .ping.err .ping.out
-    #Test Bandwidth
-    test_file=".data.out"
-    file_size=10024
-    dd if=/dev/urandom of=$test_file bs="$file_size"k count=1 &> /dev/null
-    scp -v $test_file $remote_host:$test_file 2>&1 | \
-      grep "Bytes per second" | \
-      sed "s/^[^0-9]*\([0-9.]*\)[^0-9]*\([0-9.]*\).*$/\1/g" > up_speed &
-    spin "Checking upload speed:" $!
-    up_speed=`cat up_speed`
-    rm -f up_speed
-    up_speed=`bytes_per_sec_to_printable_text $up_speed`
-    echo "  - Upload speed:   $up_speed             "
-    scp -v $remote_host:$test_file $test_file 2>&1 | \
-      grep "Bytes per second" | \
-      sed "s/^[^0-9]*\([0-9.]*\)[^0-9]*\([0-9.]*\).*$/\2/g" > down_speed &
-    spin "Checking download speed:" $!
-    down_speed=`cat down_speed`
-    rm -f down_speed
-    down_speed=`bytes_per_sec_to_printable_text $down_speed`
-    echo "  - Download speed: $down_speed           "
-    rm -f $test_file
-    ssh -q $remote_host "rm -f $test_file"
+    echo -e "  - Host is ${GREEN}reachable${NOCOLOR}"
+    if [[ "$connection_testing_depth" == "deep" ]]; then
+      #Test Latency with 5 pings
+      ping -c 5 $remote_host 2>.ping.err 1>.ping.out &
+      pid=$!
+      spin "Collecting latency measurements" $pid
+      awk '/transmitted/ || /round-trip/' .ping.out | sed 's/^/  - /'
+      rm -f .ping.err .ping.out
+      #Test Bandwidth
+      test_file=".data.out"
+      file_size=10024
+      #Create a 512MB file on the remote host
+      ssh $remote_host "dd if=/dev/zero of=$test_file bs=1048576 count=512 &>/dev/null"
+      scp -v $remote_host:$test_file $test_file 2>&1 | \
+        grep "Bytes per second" | \
+        sed "s/^[^0-9]*\([0-9.]*\)[^0-9]*\([0-9.]*\).*$/\2/g" > down_speed &
+      spin "Checking download speed:" $!
+      down_speed=`cat down_speed`
+      rm -f down_speed
+      down_speed=`bytes_per_sec_to_printable_text $down_speed`
+      echo "  - Download speed: $down_speed           "
+      #Create a 10MB file on the local host
+      dd if=/dev/urandom of=$test_file bs=1048576 count=10 &> /dev/null
+      scp -v $test_file $remote_host:$test_file 2>&1 | \
+        grep "Bytes per second" | \
+        sed "s/^[^0-9]*\([0-9.]*\)[^0-9]*\([0-9.]*\).*$/\1/g" > up_speed &
+      spin "Checking upload speed:" $!
+      up_speed=`cat up_speed`
+      rm -f up_speed
+      up_speed=`bytes_per_sec_to_printable_text $up_speed`
+      echo "  - Upload speed:   $up_speed             "
+      rm -f $test_file
+      ssh -q $remote_host "rm -f $test_file"
+    fi
   else
-    echo "  - Host is unreachable"
+    echo -e "  - Host is ${RED}unreachable${NOCOLOR}"
   fi
 }
 

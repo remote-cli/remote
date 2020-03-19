@@ -2,10 +2,10 @@
 me=`which $0`
 source `dirname $me`/remote-common
 verify_setup
-check_connection="false"
+check_connection="shallow"
 while getopts ":c" opt; do
   case ${opt} in
-    c ) check_connection="true"
+    c ) check_connection="deep"
       ;;
   esac
 done
@@ -27,10 +27,7 @@ then
 else
   echo "Remote ignores: none"
 fi
-if [[ $check_connection == "true" ]];
-then
-  verify_connection $remote_host
-fi
+verify_connection $remote_host $check_connection
 echo "**************************"
 echo ""
 if [ -n "$1" ]; 
