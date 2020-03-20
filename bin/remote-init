@@ -16,20 +16,22 @@ else
   fi
 fi
 ssh -tqK $remote_host "source ~/.bash_profile; mkdir -p $remote_directory"
-echo $remote_host:$remote_directory > .remote
-echo "Created remote directory at $remote_host:$remote_directory"
+if [ "$?" != 0 ]; then
+  echo "Failed to create remote directory $remote_directory on $remote_host."
+else
+  echo $remote_host:$remote_directory > .remote
+  echo "Created remote directory at $remote_host:$remote_directory"
 
-
-# help out with .gitignore if we are in a git repository
-if [ -d ".git" ]; then
-  # make sure we don't keep adding to .gitignore
-  git_ignore_file_name=.gitignore
-  grep ".remote\*" $git_ignore_file_name > /dev/null 2>&1
-  if [ "$?" != 0 ]; then
-    remote_git_ignore_entry=.remote*
-    echo "\n$remote_git_ignore_entry" >> "$git_ignore_file_name"
-    echo "Added $remote_git_ignore_entry to $git_ignore_file_name"
+  # help out with .gitignore if we are in a git repository
+  if [ -d ".git" ]; then
+    # make sure we don't keep adding to .gitignore
+    git_ignore_file_name=.gitignore
+    grep ".remote\*" $git_ignore_file_name > /dev/null 2>&1
+    if [ "$?" != 0 ]; then
+      remote_git_ignore_entry=.remote*
+      printf "\n$remote_git_ignore_entry\n" >> "$git_ignore_file_name"
+      echo "Added $remote_git_ignore_entry to $git_ignore_file_name"
+    fi
   fi
 fi
-
 # TODO: help out with svn ignore too
