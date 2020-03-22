@@ -1,4 +1,10 @@
 #!/bin/bash
+print_char_n_times() {
+  eval printf "$1%.0s" {1..$2}
+  printf '\n'
+}
+line_length=80
+
 me=`which $0`
 source `dirname $me`/remote-common
 verify_setup
@@ -11,8 +17,9 @@ while getopts ":c" opt; do
 done
 shift $((OPTIND -1))
 
+ 
 echo "Remote Configuration"
-echo "********************"
+print_char_n_times "*" $line_length 
 local_dir=`get_local_directory`
 echo "Local Directory: $local_dir"
 remote_host=`get_remote_host`
@@ -28,10 +35,18 @@ else
   echo "Remote ignores: none"
 fi
 verify_connection $remote_host $check_connection
-echo "**************************"
-echo ""
+conn_status=$?
+print_char_n_times "*" $line_length
+if [[ $conn_status -eq 0 ]]; then
+  echo "Remote Diff Status"
+  print_char_n_times "_" $line_length
+  ensure_synced -ivn
+  print_char_n_times "_" $line_length
+fi
 if [ -n "$1" ]; 
 then
+  echo "Remote Command Execution"
+  print_char_n_times "~" $line_length
   cmd_file_name=.remote_cmd_explain.sh
   generate_command $cmd_file_name $remote_dir $remote_command_dir "$@"
   echo "remote would execute file $cmd_file_name that contains your command. Please clean it up later!"
@@ -42,4 +57,5 @@ then
   else
     echo "ssh -Kq $remote_host \"cd $remote_command_dir; REMOTE_HOST_INDEX=$REMOTE_HOST_INDEX ./$cmd_file_name\" 2>&1 | tee /tmp/$remote_host.log"
   fi
+  print_char_n_times "~" $line_length
 fi

@@ -110,31 +110,43 @@ get_ignores()
 
 ensure_synced()
 {
+  local OPTIND
+  verbosity_flag=""
+  dry_run_flag=""
+  info_flag=""
+  while getopts ":ivnm" opt; do
+    case ${opt} in
+      i ) info_flag="-i"
+          ;;
+      v )
+          verbosity_flag="-v"
+          ;;
+      n )
+          dry_run_flag="-n"
+          ;;
+      m )
+          mirror_flag="--delete-excluded"
+          ;;
+    esac
+  done
+
   remote_host=`get_remote_host`
   remote_dir=`get_remote_directory`
   local_dir=`get_local_directory`
   pushd $local_dir > /dev/null
-  if [ -z "$1" ]
-  then
-      rsync -az --copy-unsafe-links -e "ssh -q" --delete --delete-after --force `get_ignores` ./ $remote_host:$remote_dir || {
+  ignores=`get_ignores`
+  if [[ "$verbosity_flag" != "" ]]; then
+    start=`date +%s`
+    echo "Starting sync..."
+  fi
+  rsync -achz $info_flag $verbosity_flag $dry_run_flag --copy-unsafe-links -e "ssh -q" --delete --delete-after $mirror_flag --force `get_ignores` ./ $remote_host:$remote_dir || {
         echo "Failed to rsync. Is remote host $remote_host reachable?"
         exit 1
-      }
-  else
-          if [ -z "$2" ]
-          then
-            echo "syncing to $remote_host:$remote_dir"
-            rsync -avz --copy-unsafe-links -e "ssh -q" --delete --delete-after --delete-excluded --force `get_ignores` ./ $remote_host:$remote_dir || {
-              echo "Failed to rsync. Is remote host $remote_host reachable?"
-              exit 1
-            }
-          else
-            echo "dry run for syncing to $remote_host:$remote_dir"
-            rsync -avvnz --copy-unsafe-links -e "ssh -q" --delete --delete-after --delete-excluded --force `get_ignores` ./ $remote_host:$remote_dir || {
-            echo "Failed to rsync. Is remote host $remote_host reachable?"
-              exit 1
-            }
-    fi
+  }
+  if [[ "$verbosity_flag" != "" ]]; then
+    end=`date +%s`
+    runtime=$( echo "$end - $start" | bc -l )
+    echo "Sync done in $runtime seconds."
   fi
   popd > /dev/null
 }
@@ -206,6 +218,7 @@ verify_connection()
     fi
   else
     echo -e "  - Host is ${RED}unreachable${NOCOLOR}"
+    exit 1
   fi
 }
 

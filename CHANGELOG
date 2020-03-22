@@ -1,3 +1,9 @@
+1.3.0
+-----
+* Adding command line flags for remote, remote-push
+* Dropping remote-push-dry since remote-push -n is an equivalent alternative.
+* Improving remote-explain output to include diff status
+
 1.2.7
 -----
 * remote-explain supports -c flag to test connection to the remote host

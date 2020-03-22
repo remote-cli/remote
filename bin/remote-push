@@ -1,5 +1,24 @@
 #!/bin/bash
 me=`which $0`
+prog_name=`basename $0`
 source `dirname $me`/remote-common
 verify_setup
-ensure_synced "verbose"
+dry_run_flag=""
+while getopts ":nmh" opt; do
+  case ${opt} in
+    n ) dry_run_flag="n"
+      ;;
+    m ) mirror_flag="m"
+      ;;
+    h ) echo "Push changes to remote host."
+        echo "Usage: $prog_name [-mnh]"
+        echo " -m: Mirror mode. Delete all files that are extra on the remote host including ignored files"
+        echo " -n: Dry run mode"
+        echo " -h: Print this help message"
+        exit 0
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+ensure_synced -iv"$dry_run_flag""$mirror_flag"
