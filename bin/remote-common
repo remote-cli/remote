@@ -1,5 +1,6 @@
 #!/bin/bash
 NULL_LOCAL_DIRECTORY="__null__"
+IGNORE_FILE_NAME=".remoteignore"
 
 #performs md5 of string passed in
 #uses md5 or md5sum depending on what it finds
@@ -96,25 +97,110 @@ get_remote_host()
   fi
   sed -n "${lineNo}{p;q;}" $local_dir/.remote | cut -d ":" -f 1
 }
-  
-get_ignores()
+
+# Detect the version of the ignore file that we are working with
+# 0 -> old school : list of ignore patterns that work both ways
+# 1 -> new style  : support for separate push / pull / both way ignore patterns
+get_ignore_file_version()
 {
-  pattern='--exclude=.remote --exclude=.remoteignore '
-  if [ -f .remoteignore ]
-  then
-    awk 'BEGIN {pattern = "--exclude=.remote --exclude=.remoteignore "} {pattern = pattern "--exclude="$1" "} END {print pattern}' .remoteignore
-  else
-    echo $pattern
+  if [ -f $IGNORE_FILE_NAME ]; then
+    grep -q "^\s*push\s*:" $IGNORE_FILE_NAME
+    if [ $? -eq 0 ]; then
+      echo "1"
+      exit 0
+    fi
+    grep -q "^\s*pull\s*:" $IGNORE_FILE_NAME
+    if [ $? -eq 0 ]; then
+      echo "1"
+      exit 0
+    fi
+    grep -q "^\s*both\s*:" $IGNORE_FILE_NAME
+    if [ $? -eq 0 ]; then
+      echo "1"
+      exit 0
+    fi
   fi
+  # either we don't have a file, or we couldn't find our patterns
+  echo "0"
 }
 
+
+get_pull_ignores()
+{
+  local tmpfile=$(mktemp /tmp/remote.XXXXXX)
+  echo ".remote" > $tmpfile
+  echo "$IGNORE_FILE_NAME" >> $tmpfile
+  local ignore_version=`get_ignore_file_version`
+  if [ "$ignore_version" == "0" ]; then
+    # Assume that old .remoteignore contains "bidirectional" ignore rules
+    if [ -f .remoteignore ]; then
+      cat .remoteignore >> $tmpfile
+    fi
+  else
+    awk 'BEGIN { printit = 0} \
+         /^\s*#/ { next } \
+         /pull:/ { printit=1; next } \
+         /push:/ { printit=0; next } \
+         /both:/ { printit=1; next }\
+         /^.*$/ { if (printit == 1) {print $0 }} \
+        ' $IGNORE_FILE_NAME >> $tmpfile
+  fi
+  echo $tmpfile
+}
+
+get_pull_includes()
+{
+  local tmpfile=$(mktemp /tmp/remote.XXXXXX)
+  local ignore_version=`get_ignore_file_version`
+  if [ "$ignore_version" != "0" ]; then
+    awk 'BEGIN { printit = 0} \
+         /^\s*#/ { next } \
+         /pull:/ { printit=0; next } \
+         /push:/ { printit=1; next } \
+         /both:/ { printit=0; next }\
+         /^.*$/ { if (printit == 1) {print $0 }} \
+        ' $IGNORE_FILE_NAME >> $tmpfile
+  fi
+  echo $tmpfile
+}
+
+get_push_ignores()
+{
+  local tmpfile=$(mktemp /tmp/remote.XXXXXX)
+  echo ".remote" > $tmpfile
+  echo $IGNORE_FILE_NAME >> $tmpfile
+  local ignore_file_version=`get_ignore_file_version`
+  if [ "$ignore_file_version" == "0" ]; then
+    if [ -f .remoteignore ]; then
+      cat .remoteignore >> $tmpfile
+    fi
+  else
+    awk 'BEGIN { printit = 0} \
+         /^\s*#/ { next } \
+         /pull:/ { printit=0; next } \
+         /push:/ { printit=1; next } \
+         /both:/ { printit=1; next }\
+         /^.*$/ { if (printit == 1) {print $0 }} \
+        ' $IGNORE_FILE_NAME >> $tmpfile
+  fi
+  echo $tmpfile
+}
+
+#print a single character n times
+print_char_n_times() {
+  eval printf "$1%.0s" {1..$2}
+  printf '\n'
+}
+
+#The main workhorse, syncs to the remote destination and back
 ensure_synced()
 {
   local OPTIND
-  verbosity_flag=""
-  dry_run_flag=""
-  info_flag=""
-  while getopts ":ivnm" opt; do
+  local verbosity_flag=""
+  local dry_run_flag=""
+  local info_flag=""
+  local direction="push"
+  while getopts ":ivnmr" opt; do
     case ${opt} in
       i ) info_flag="-i"
           ;;
@@ -127,6 +213,8 @@ ensure_synced()
       m )
           mirror_flag="--delete-excluded"
           ;;
+      r ) direction="pull"
+          ;;
     esac
   done
 
@@ -134,19 +222,66 @@ ensure_synced()
   remote_dir=`get_remote_directory`
   local_dir=`get_local_directory`
   pushd $local_dir > /dev/null
-  ignores=`get_ignores`
-  if [[ "$verbosity_flag" != "" ]]; then
+  if [[ "$direction" == "push" ]]; then
+    push_ignores=`get_push_ignores`
     start=`date +%s`
-    echo "Starting sync..."
-  fi
-  rsync -achz $info_flag $verbosity_flag $dry_run_flag --copy-unsafe-links -e "ssh -q" --delete --delete-after $mirror_flag --force `get_ignores` ./ $remote_host:$remote_dir || {
-        echo "Failed to rsync. Is remote host $remote_host reachable?"
-        exit 1
-  }
-  if [[ "$verbosity_flag" != "" ]]; then
+    if [[ "$verbosity_flag" != "" ]]; then
+      echo "Push Ignore Patterns"
+      cat $push_ignores | sed 's/^/  - /'
+    fi
+    if [[ "$info_flag" != "" || "verbosity_flag" != "" ]]; then
+      if [[ "$dry_run_flag" == "" ]]; then
+        echo "Starting sync..."
+      else
+        echo "Starting sync... (dry run)"
+      fi
+    fi
+    trap 'rm -f -- "$push_ignores"' INT TERM HUP EXIT
+    rsync -rlpchz $info_flag $verbosity_flag $dry_run_flag --copy-unsafe-links -e "ssh -q" --delete --delete-after $mirror_flag --force \
+      --exclude-from $push_ignores ./ $remote_host:$remote_dir || {
+          echo "Failed to rsync. Is remote host $remote_host reachable?"
+          exit 1
+    }
     end=`date +%s`
     runtime=$( echo "$end - $start" | bc -l )
-    echo "Sync done in $runtime seconds."
+    if [[ "$info_flag" != "" || "$verbosity_flag" != "" ]]; then
+      echo "Sync done in $runtime seconds."
+      print_char_n_times "_" 40
+    fi
+  else # direction = pull
+    pull_includes=`get_pull_includes`
+    pull_ignores=`get_pull_ignores`
+    trap 'rm -f -- "$pull_includes"' INT TERM HUP EXIT
+    trap 'rm -f -- "$pull_ignores"' INT TERM HUP EXIT
+    if [[ "$verbosity_flag" != "" ]]; then
+      echo "Pull Include Patterns"
+      cat $pull_includes | sed 's/^/  - /'
+      echo "Pull Ignore Patterns"
+      cat $pull_ignores | sed 's/^/  - /'
+    fi
+      start=`date +%s`
+    if [[ "$info_flag" != "" || "verbosity_flag" != "" ]]; then
+      print_char_n_times "_" 40
+      if [[ "$dry_run_flag" == "" ]]; then
+        echo "Starting reverse sync..."
+      else
+        echo "Starting reverse sync... (dry run)"
+      fi
+    fi
+    rsync -rlpmchz $info_flag $verbosity_flag $dry_run_flag --exclude-from=$pull_ignores --include-from=$pull_includes --include='*/' --exclude='*' \
+      $remote_host:$remote_command_dir . || {
+      echo "Failed to pull. Is remote host $remote_host reachable?"
+      exit 1
+    }
+    end=`date +%s`
+    runtime=$( echo "$end - $start" | bc -l )
+    if [[ "$info_flag" != "" || "verbosity_flag" != "" ]]; then
+      if [[ "$dry_run_flag" == "" ]]; then
+        echo "Reverse sync done in $runtime seconds."
+      else
+        echo "Reverse sync done in $runtime secconds. (dry run)"
+      fi
+    fi
   fi
   popd > /dev/null
 }
@@ -237,6 +372,18 @@ bytes_per_sec_to_printable_text()
 
 generate_command()
 {
+  local OPTIND
+  local command_mode=""
+  while getopts ":e" opt; do
+    case ${opt} in
+    e )
+      echo "Command mode is true"
+      command_mode="true"
+    ;;
+    esac
+  done
+  shift $((OPTIND -1))
+
   declare cmd_file_name="$1"
   declare remote_dir="$2"
   declare remote_command_dir="$3"
@@ -251,9 +398,19 @@ source ~/.bash_profile 2>/dev/null 1>/dev/null
 source ~/$remote_dir/.remoteenv 2>/dev/null 1>/dev/null
 #drop into remote dir
 cd ~/$remote_command_dir
+EOT
+
+if [ "$command_mode" == "" ]; then
+  cat <<EOT >> $cmd_file_name
 #execute actual command (escape special characters)
 $(printf ' %q' "$@")
 EOT
+  else
+  cat <<EOT >> $cmd_file_name
+#execute actual command
+$(printf "$@")
+EOT
+  fi
   chmod a+x $cmd_file_name
 }
 

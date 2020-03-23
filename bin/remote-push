@@ -4,21 +4,24 @@ prog_name=`basename $0`
 source `dirname $me`/remote-common
 verify_setup
 dry_run_flag=""
-while getopts ":nmh" opt; do
+while getopts ":nvmh" opt; do
   case ${opt} in
-    n ) dry_run_flag="n"
+    n ) dry_run_flag="-n"
       ;;
-    m ) mirror_flag="m"
+    m ) mirror_flag="-m"
+      ;;
+    v ) verbosity_flag="-v"
       ;;
     h ) echo "Push changes to remote host."
-        echo "Usage: $prog_name [-mnh]"
+        echo "Usage: $prog_name [-mnvh]"
         echo " -m: Mirror mode. Delete all files that are extra on the remote host including ignored files"
         echo " -n: Dry run mode"
+        echo " -v: Verbose mode"
         echo " -h: Print this help message"
         exit 0
       ;;
   esac
 done
 shift $((OPTIND -1))
-
-ensure_synced -iv"$dry_run_flag""$mirror_flag"
+#always use -i to print useful information during the push
+ensure_synced -i $verbosity_flag $dry_run_flag $mirror_flag

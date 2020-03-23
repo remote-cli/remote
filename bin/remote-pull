@@ -1,14 +1,34 @@
 #!/bin/bash
 me=`which $0`
+prog_name=`basename $0`
 source `dirname $me`/remote-common
 verify_setup
+dry_run_flag=""
+while getopts ":nvh" opt; do
+  case ${opt} in
+    n ) dry_run_flag="-n"
+      ;;
+    v ) verbosity_flag="-v"
+      ;;
+    h ) echo "Pull changes from remote host."
+        echo "Usage: $prog_name [-nvh] [directory/file]"
+        echo " -n: Dry run mode"
+        echo " -v: Verbose mode"
+        echo " -h: Print this help message"
+        exit 0
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
+local_directory=`get_local_directory`
 remote_host=`get_remote_host`
 remote_command_dir=`get_remote_command_directory`
-if [ -z $1 ]
-then
-  echo "Pulling entire remote directory in..."
-  rsync -avz $remote_host:$remote_command_dir .
+if [ -z $1 ]; then
+# if no directories are passed in, then we just reverse-sync the repo
+  ensure_synced -ir $dry_run_flag $verbosity_flag
 else
+  # Directories/files are passed in, we rsync them back, ignoring all exclusion patterns
   for remote in "$@"
   do
     rsync -avz $remote_host:$remote_command_dir/$remote .

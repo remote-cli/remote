@@ -1,17 +1,17 @@
 #!/bin/bash
-print_char_n_times() {
-  eval printf "$1%.0s" {1..$2}
-  printf '\n'
-}
 line_length=80
 
 me=`which $0`
 source `dirname $me`/remote-common
 verify_setup
 check_connection="shallow"
+command_flag=""
 while getopts ":c" opt; do
   case ${opt} in
     c ) check_connection="deep"
+      ;;
+    e )
+        command_flag="-e"
       ;;
   esac
 done
@@ -30,6 +30,7 @@ remote_command_dir=`get_remote_command_directory`
 if [ -f "$local_dir/.remoteignore" ];
 then
   echo "Remote ignores: hosted at $local_dir/.remoteignore"
+  echo "Remote ignore file version: `get_ignore_file_version`"
   cat $local_dir/.remoteignore | sed 's/^/  - /'
 else
   echo "Remote ignores: none"
@@ -38,17 +39,21 @@ verify_connection $remote_host $check_connection
 conn_status=$?
 print_char_n_times "*" $line_length
 if [[ $conn_status -eq 0 ]]; then
-  echo "Remote Diff Status"
+  echo "Remote Diff Status (Push)"
   print_char_n_times "_" $line_length
   ensure_synced -ivn
   print_char_n_times "_" $line_length
+  echo "Remote Diff Status (Pull)"
+  print_char_n_times "x" $line_length
+  ensure_synced -irvn
+  print_char_n_times "x" $line_length
 fi
 if [ -n "$1" ]; 
 then
   echo "Remote Command Execution"
   print_char_n_times "~" $line_length
   cmd_file_name=.remote_cmd_explain.sh
-  generate_command $cmd_file_name $remote_dir $remote_command_dir "$@"
+  generate_command $command_flag $cmd_file_name $remote_dir $remote_command_dir "$@"
   echo "remote would execute file $cmd_file_name that contains your command. Please clean it up later!"
 
   if [ -z $REMOTE_ALLOC_TTY ]

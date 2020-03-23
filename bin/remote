@@ -4,11 +4,15 @@ prog_name=`basename $0`
 source `dirname $me`/remote-common
 
 usage() {
-  echo "Usage: $1 [-vnh] <command>"
+  echo "Usage: $1 [-vneh] <command>"
   echo " -v: verbose"
   echo " -n: dry-run mode"
+  echo " -e: run this single command. Use this if you do not want the default quoting behavior on commands"
   echo " -h: print this help message"
-  echo " e.g. $1 ls"
+  echo " Examples --->"
+  echo " Simple command with no special characters      : $1 ls"
+  echo " Command with special characters (\$)            : $1 curl 'http://localhost:80/restApi/member/1\$WuKbLg'"
+  echo " Command with redirection to file on destination: $1 -e \"echo \\\"foo\\\" > test.out\""
 }
 
 exit_abnormal() {
@@ -19,13 +23,17 @@ exit_abnormal() {
 
 verbosity_flag=""
 dry_run_flag=""
-while getopts ":vnh" opt; do
+command_flag=""
+while getopts ":venh" opt; do
 case ${opt} in
 v )
-  verbosity_flag="-v"
+  verbosity_flag="-i"
   ;;
 n )
   dry_run_flag="-n"
+  ;;
+e )
+  command_flag="-e"
   ;;
 h ) usage $prog_name
     exit 0
@@ -45,7 +53,7 @@ remote_command_dir=`get_remote_command_directory`
 random_num=$((1 + RANDOM % 1000))
 cmd_file_name=.remote_cmd_${random_num}.sh
 
-generate_command $cmd_file_name $remote_dir $remote_command_dir "$@"
+generate_command $command_flag $cmd_file_name $remote_dir $remote_command_dir "$@"
 ensure_synced $verbosity_flag $dry_run_flag
 if [ -z $REMOTE_ALLOC_TTY ]
 then
@@ -55,3 +63,4 @@ else
 fi
 #cleanup local cmd file
 rm -f $cmd_file_name
+ensure_synced -r $verbosity_flag $dry_run_flag

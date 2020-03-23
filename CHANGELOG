@@ -1,3 +1,8 @@
+1.3.1
+-----
+* More comprehensive ignore rule specifications (push, pull, both) for .remoteignore files
+* Command-line argument improvements to remote, remote-push, remote-pull and remote-explain
+
 1.3.0
 -----
 * Adding command line flags for remote, remote-push
