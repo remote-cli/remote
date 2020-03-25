@@ -2,6 +2,7 @@
 me=`which $0`
 prog_name=`basename $0`
 source `dirname $me`/remote-common
+
 verify_setup
 dry_run_flag=""
 while getopts ":nvmh" opt; do

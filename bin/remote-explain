@@ -3,6 +3,7 @@ line_length=80
 
 me=`which $0`
 source `dirname $me`/remote-common
+
 verify_setup
 check_connection="shallow"
 command_flag=""
@@ -64,3 +65,4 @@ then
   fi
   print_char_n_times "~" $line_length
 fi
+cleanup

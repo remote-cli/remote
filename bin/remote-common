@@ -2,6 +2,14 @@
 NULL_LOCAL_DIRECTORY="__null__"
 IGNORE_FILE_NAME=".remoteignore"
 
+trap common_cleanup SIGHUP SIGINT SIGTERM
+
+common_cleanup()
+{
+  rm -f /tmp/remote.*
+  exit
+}
+
 #performs md5 of string passed in
 #uses md5 or md5sum depending on what it finds
 do_md5()
@@ -229,19 +237,19 @@ ensure_synced()
       echo "Push Ignore Patterns"
       cat $push_ignores | sed 's/^/  - /'
     fi
-    if [[ "$info_flag" != "" || "verbosity_flag" != "" ]]; then
+    if [[ "$info_flag" != "" || "$verbosity_flag" != "" ]]; then
       if [[ "$dry_run_flag" == "" ]]; then
         echo "Starting sync..."
       else
         echo "Starting sync... (dry run)"
       fi
     fi
-    trap 'rm -f -- "$push_ignores"' INT TERM HUP EXIT
     rsync -rlpchz $info_flag $verbosity_flag $dry_run_flag --copy-unsafe-links -e "ssh -q" --delete --delete-after $mirror_flag --force \
       --exclude-from $push_ignores ./ $remote_host:$remote_dir || {
           echo "Failed to rsync. Is remote host $remote_host reachable?"
           exit 1
     }
+    rm -f $push_ignores
     end=`date +%s`
     runtime=$( echo "$end - $start" | bc -l )
     if [[ "$info_flag" != "" || "$verbosity_flag" != "" ]]; then
@@ -251,8 +259,6 @@ ensure_synced()
   else # direction = pull
     pull_includes=`get_pull_includes`
     pull_ignores=`get_pull_ignores`
-    trap 'rm -f -- "$pull_includes"' INT TERM HUP EXIT
-    trap 'rm -f -- "$pull_ignores"' INT TERM HUP EXIT
     if [[ "$verbosity_flag" != "" ]]; then
       echo "Pull Include Patterns"
       cat $pull_includes | sed 's/^/  - /'
@@ -260,7 +266,7 @@ ensure_synced()
       cat $pull_ignores | sed 's/^/  - /'
     fi
       start=`date +%s`
-    if [[ "$info_flag" != "" || "verbosity_flag" != "" ]]; then
+    if [[ "$info_flag" != "" || "$verbosity_flag" != "" ]]; then
       print_char_n_times "_" 40
       if [[ "$dry_run_flag" == "" ]]; then
         echo "Starting reverse sync..."
@@ -268,14 +274,15 @@ ensure_synced()
         echo "Starting reverse sync... (dry run)"
       fi
     fi
-    rsync -rlpmchz $info_flag $verbosity_flag $dry_run_flag --exclude-from=$pull_ignores --include-from=$pull_includes --include='*/' --exclude='*' \
+    rsync -rlpmchz $info_flag $verbosity_flag $dry_run_flag --copy-unsafe-links --exclude-from=$pull_ignores --include-from=$pull_includes --include='*/' --exclude='*' \
       $remote_host:$remote_command_dir . || {
       echo "Failed to pull. Is remote host $remote_host reachable?"
       exit 1
     }
+    rm -f $pull_includes $pull_ignores
     end=`date +%s`
     runtime=$( echo "$end - $start" | bc -l )
-    if [[ "$info_flag" != "" || "verbosity_flag" != "" ]]; then
+    if [[ "$info_flag" != "" || "$verbosity_flag" != "" ]]; then
       if [[ "$dry_run_flag" == "" ]]; then
         echo "Reverse sync done in $runtime seconds."
       else

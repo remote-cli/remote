@@ -1,3 +1,8 @@
+1.3.2
+-----
+* Fixing signal handling, cleanup of temp files
+* Fixing a bug in inferring verbose mode
+
 1.3.1
 -----
 * More comprehensive ignore rule specifications (push, pull, both) for .remoteignore files
