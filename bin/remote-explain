@@ -65,4 +65,3 @@ then
   fi
   print_char_n_times "~" $line_length
 fi
-cleanup
