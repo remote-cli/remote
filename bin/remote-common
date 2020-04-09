@@ -400,9 +400,13 @@ generate_command()
 #delete myself first
 rm $cmd_file_name
 #source bash profile, ignore errors
-source ~/.bash_profile 2>/dev/null 1>/dev/null
+if [ -f ~/.bash_profile ]; then
+  source ~/.bash_profile 2>/dev/null 1>/dev/null
+fi
 #source .remotenv, ignore errors
-source ~/$remote_dir/.remoteenv 2>/dev/null 1>/dev/null
+if [ -f ~/$remote_dir/.remoteenv ]; then
+  source ~/$remote_dir/.remoteenv 2>/dev/null 1>/dev/null
+fi
 #drop into remote dir
 cd ~/$remote_command_dir
 EOT

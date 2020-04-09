@@ -1,3 +1,7 @@
+1.3.3
+-----
+* Fixing a bug in command execution for zsh based shells
+
 1.3.2
 -----
 * Fixing signal handling, cleanup of temp files
