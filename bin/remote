@@ -47,6 +47,7 @@ v )
   ;;
 n )
   dry_run_flag="-n"
+  dry_run_prefix="(DRY_RUN)"
   ;;
 e )
   command_flag="-e"
@@ -69,11 +70,19 @@ remote_command_dir=`get_remote_command_directory`
 
 generate_command $command_flag $cmd_file_name $remote_dir $remote_command_dir "$@"
 ensure_synced $verbosity_flag $dry_run_flag
+
+get_remote_shell
+
 if [ -z $REMOTE_ALLOC_TTY ]
 then
-  ssh -tKq $remote_host "cd $remote_command_dir; ./$cmd_file_name"
+  if [[ "$verbosity_flag" == "-i" || "$dry_run_flag" == "-n" ]]; then
+    echo "${dry_run_prefix}>" ssh -tKq $remote_host "$RSHELL $RSHELL_OPTS -l -c \"cd $remote_command_dir; ./$cmd_file_name\""
+  fi
+  if [ "$dry_run_flag" != "-n" ]; then
+    ssh -tKq $remote_host "$RSHELL $RSHELL_OPTS -l -c \"cd $remote_command_dir; ./$cmd_file_name\""
+  fi
 else
-  ssh -Kq $remote_host "cd $remote_command_dir; REMOTE_HOST_INDEX=$REMOTE_HOST_INDEX ./$cmd_file_name" 2>&1 | tee /tmp/$remote_host.log
+  ssh -Kq $remote_host "$RSHELL $RSHELL_OPTS -l -c \"cd $remote_command_dir; REMOTE_HOST_INDEX=$REMOTE_HOST_INDEX ./$cmd_file_name\"" 2>&1 | tee /tmp/$remote_host.log
 fi
 if [ $? -eq "0" ]; then
   # reverse sync only if the command was successful

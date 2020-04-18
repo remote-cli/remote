@@ -67,21 +67,28 @@ get_remote_init_directory()
   echo .remotes/$remote_directory
 }
 
+get_line_number()
+{
+  local_dir=`get_local_directory`
+  #If REMOTE_HOST_INDEX is set, that overrides settings in .remoteindex
+  if [ "x$REMOTE_HOST_INDEX" == "x" ]
+    then
+      if [ -f "$local_dir"/.remoteindex ]
+      then
+        lineNo=`cat "$local_dir"/.remoteindex`
+      else
+        lineNo=1
+      fi
+    else
+      lineNo=$REMOTE_HOST_INDEX
+  fi
+}
+
 get_remote_directory()
 {
   local_dir=`get_local_directory`
-  if [ "x$REMOTE_HOST_INDEX" == "x" ]
-  then
-  if [ -e $local_dir/.remoteindex ]
-  then
-    lineNo=`cat $local_dir/.remoteindex`
-  else
-    lineNo=1
-  fi
-  else
-    lineNo=$REMOTE_HOST_INDEX
-  fi
-  sed -n "${lineNo}{p;q;}" $local_dir/.remote | cut -d ":" -f 2
+  get_line_number
+  cat $local_dir/.remote | awk -v line="$lineNo" '{ if (NR==line) print $1}' | cut -d ":" -f 2
 }
 
 get_remote_host()
@@ -89,21 +96,31 @@ get_remote_host()
   local_dir=`get_local_directory`
   if [ -z $1 ]
   then
-          if [ "x$REMOTE_HOST_INDEX" == "x" ]
-          then
-            if [ -e $local_dir/.remoteindex ]
-                  then
-                    lineNo=`cat $local_dir/.remoteindex`
-                  else
-                    lineNo=1
-                  fi
-          else
-            lineNo=$REMOTE_HOST_INDEX
-          fi
+    if [ "x$REMOTE_HOST_INDEX" == "x" ]
+    then
+      if [ -e $local_dir/.remoteindex ]
+        then
+          lineNo=`cat $local_dir/.remoteindex`
+        else
+          lineNo=1
+      fi
+    else
+      lineNo=$REMOTE_HOST_INDEX
+    fi
   else
     lineNo=$1
   fi
-  sed -n "${lineNo}{p;q;}" $local_dir/.remote | cut -d ":" -f 1
+  cat "$local_dir/.remote" | awk -v line="$lineNo" '{ if (NR==line) print $1}' | cut -d ":" -f 1
+}
+
+#Process any additional directives on the host-line in the .remote file
+#Variables like RSHELL and RSHELL_OPTS can be set there to configure remote execution behavior
+get_remote_shell()
+{
+  local_dir=`get_local_directory`
+  get_line_number
+  RSHELL="bash"
+  eval $( cat $local_dir/.remote | awk -v line="$lineNo" ' { if (NR==line && NF>1) {for (i=2; i<NF; i++) printf $i " "; print $NF}}' )
 }
 
 # Detect the version of the ignore file that we are working with
@@ -286,7 +303,7 @@ ensure_synced()
       if [[ "$dry_run_flag" == "" ]]; then
         echo "Reverse sync done in $runtime seconds."
       else
-        echo "Reverse sync done in $runtime secconds. (dry run)"
+        echo "Reverse sync done in $runtime seconds. (dry run)"
       fi
     fi
   fi
@@ -296,7 +313,7 @@ ensure_synced()
 verify_setup()
 {
   #check that local directory for .remote is found
-  local_directory=`get_local_directory` || {
+  local local_directory=`get_local_directory` || {
     echo "Failed to find a local remote directory. Did you remote-init yet?"
     exit 1
   }
@@ -325,6 +342,41 @@ verify_connection()
   ping -c 1 $remote_host 2>/dev/null 1>/dev/null
   if [ $? -eq 0 ]; then
     echo -e "  - Host is ${GREEN}reachable${NOCOLOR}"
+    #setup remote shell variables
+    get_remote_shell
+    remote_exec_works="false"
+    passwordless_ssh_works="true"
+    local tmpfile=$(mktemp /tmp/remote.XXXXXX)
+    ssh -tKq "$remote_host" "$RSHELL $RSHELL_OPTS -l -c 'echo success'" 2>&1 1>"$tmpfile" &
+    sleep 3
+    grep -q "success" "$tmpfile"
+    if [ $? -eq 0 ]; then
+      remote_exec_works="true"
+    else
+      kill %1
+    fi
+    rm -f "$tmpfile"
+    if [[ "$remote_exec_works" == "false" ]]; then
+      # try --noprofile based login
+      ssh -Kq "$remote_host" "bash --noprofile -l -c 'echo success'" 2>&1 1>"$tmpfile" &
+      sleep 3
+      grep -q "success" "$tmpfile"
+      if [ $? -eq 0 ]; then
+        passwordless_ssh_works="true"
+        echo -e "  - Passwordless ssh to $remote_host is ${GREEN}working${NOCOLOR}"
+        echo -e "  - Bash profile on remote host is ${RED}busted.${NOCOLOR}"
+        echo -e "  -       Either set ${RED}RSHELL_OPTS=--noprofile${NOCOLOR}"
+        echo -e "  -       OR set ${RED}RSHELL=zsh${NOCOLOR} in your .remote file"
+      else
+        kill %1
+        passwordless_ssh_works="false"
+        echo -e "  - Passwordless ssh to $remote_host is ${RED}not working${NOCOLOR}"
+        echo -e "  - Try running ${GREEN}ssh -Kq $remote_host \"bash --noprofile -l -c 'echo success'\"${NOCOLOR}"
+      fi
+      rm -f "$tmpfile"
+    else
+        echo -e "  - Remote execution on $remote_host is ${GREEN}working${NOCOLOR}"
+    fi
     if [[ "$connection_testing_depth" == "deep" ]]; then
       #Test Latency with 5 pings
       ping -c 5 $remote_host 2>.ping.err 1>.ping.out &
@@ -362,6 +414,10 @@ verify_connection()
     echo -e "  - Host is ${RED}unreachable${NOCOLOR}"
     exit 1
   fi
+  #if passwordless ssh is not working, no use trying anything else
+  if [[ "$passwordless_ssh_works" == "false" ]]; then
+    exit 1
+  fi
 }
 
 # Converts a bytes per second number to a printable rate (Kbps/Mbps etc)
@@ -384,7 +440,6 @@ generate_command()
   while getopts ":e" opt; do
     case ${opt} in
     e )
-      echo "Command mode is true"
       command_mode="true"
     ;;
     esac
@@ -399,10 +454,6 @@ generate_command()
   cat <<EOT >> $cmd_file_name
 #delete myself first
 rm $cmd_file_name
-#source bash profile, ignore errors
-if [ -f ~/.bash_profile ]; then
-  source ~/.bash_profile 2>/dev/null 1>/dev/null
-fi
 #source .remotenv, ignore errors
 if [ -f ~/$remote_dir/.remoteenv ]; then
   source ~/$remote_dir/.remoteenv 2>/dev/null 1>/dev/null

@@ -27,6 +27,11 @@ remote_host=`get_remote_host`
 echo "Remote Host: $remote_host"
 remote_dir=`get_remote_directory`
 echo "Remote Directory: $remote_dir"
+get_remote_shell
+echo "Remote Shell: $RSHELL"
+if [ ! -z "$RSHELL_OPTS" ]; then
+  echo "Remote Shell Options: $RSHELL_OPTS"
+fi
 remote_command_dir=`get_remote_command_directory`
 if [ -f "$local_dir/.remoteignore" ];
 then
