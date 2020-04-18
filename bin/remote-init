@@ -15,7 +15,7 @@ else
     remote_directory=`get_remote_init_directory`
   fi
 fi
-ssh -tqK $remote_host "source ~/.bash_profile; mkdir -p $remote_directory"
+ssh -tqK $remote_host "mkdir -p $remote_directory"
 if [ "$?" != 0 ]; then
   echo "Failed to create remote directory $remote_directory on $remote_host."
 else
