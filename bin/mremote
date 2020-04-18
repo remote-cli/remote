@@ -23,11 +23,18 @@ for ((i=1;i<=$num_hosts;++i))
 do
   bash_init_file=`mktemp /tmp/mremote.XXXXXX`
   remote_host=`get_remote_host $i`
-  echo "REMOTE_ALLOC_TTY="false" REMOTE_HOST_INDEX=$i `dirname $me`/remote $@" > $bash_init_file
+  cat <<EOT>>$bash_init_file
+if [ -f ~/.bash_profile ];
+  then
+    source ~/.bash_profile
+fi
+export REMOTE_ALLOC_TTY="false"
+export REMOTE_HOST_INDEX=$i
+`dirname $me`/remote $@
+EOT
   echo "screen -t "$remote_host" bash --init-file $bash_init_file" >> $screen_file
   tmp_files="$tmp_files $bash_init_file"
 done
-cat $screen_file
 screen -c $screen_file
 #trap 'kill -9 $(jobs -pr)' SIGINT SIGTERM EXIT
 wait
