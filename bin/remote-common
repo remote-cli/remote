@@ -54,7 +54,7 @@ get_remote_command_directory()
   local this_dir=`pwd`
   local root_dir=`get_local_directory`
   diff=`echo $this_dir | sed s:$root_dir::`
-  echo `get_remote_directory`/$diff
+  echo `get_remote_directory`$diff
 }
 
 
@@ -88,7 +88,10 @@ get_remote_directory()
 {
   local_dir=`get_local_directory`
   get_line_number
-  cat $local_dir/.remote | awk -v line="$lineNo" '{ if (NR==line) print $1}' | cut -d ":" -f 2
+  local remote_dir=`cat $local_dir/.remote | awk -v line="$lineNo" '{ if (NR==line) print $1}' | cut -d ":" -f 2`
+  # normalize remote_dir : leave paths starting with ~ or / alone. Add "~/" for all other paths
+  local remote_dir=`echo $remote_dir | awk '/^~/  { print;next }  /^\// { print;next } // { print "~/"$1 }'`
+  echo "$remote_dir"
 }
 
 get_remote_host()
@@ -348,7 +351,7 @@ verify_connection()
     passwordless_ssh_works="true"
     local tmpfile=$(mktemp /tmp/remote.XXXXXX)
     ssh -tKq "$remote_host" "$RSHELL $RSHELL_OPTS -l -c 'echo success'" 2>&1 1>"$tmpfile" &
-    sleep 3
+    sleep 5
     grep -q "success" "$tmpfile"
     if [ $? -eq 0 ]; then
       remote_exec_works="true"
@@ -359,7 +362,7 @@ verify_connection()
     if [[ "$remote_exec_works" == "false" ]]; then
       # try --noprofile based login
       ssh -Kq "$remote_host" "bash --noprofile -l -c 'echo success'" 2>&1 1>"$tmpfile" &
-      sleep 3
+      sleep 5
       grep -q "success" "$tmpfile"
       if [ $? -eq 0 ]; then
         passwordless_ssh_works="true"
@@ -455,11 +458,11 @@ generate_command()
 #delete myself first
 rm $cmd_file_name
 #source .remotenv, ignore errors
-if [ -f ~/$remote_dir/.remoteenv ]; then
-  source ~/$remote_dir/.remoteenv 2>/dev/null 1>/dev/null
+if [ -f $remote_dir/.remoteenv ]; then
+  source $remote_dir/.remoteenv 2>/dev/null 1>/dev/null
 fi
 #drop into remote dir
-cd ~/$remote_command_dir
+cd $remote_command_dir
 EOT
 
 if [ "$command_mode" == "" ]; then
