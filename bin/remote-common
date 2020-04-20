@@ -122,7 +122,11 @@ get_remote_shell()
 {
   local_dir=`get_local_directory`
   get_line_number
-  RSHELL="bash"
+  #if global variable $RSHELL is not set, set the default
+  if [ -z "$RSHELL" ]; then
+    RSHELL="bash"
+  fi
+  #eval any host specific variables to set host-specific overrides
   eval $( cat $local_dir/.remote | awk -v line="$lineNo" ' { if (NR==line && NF>1) {for (i=2; i<NF; i++) printf $i " "; print $NF}}' )
 }
 
