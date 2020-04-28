@@ -33,5 +33,29 @@ else
       echo "Added $remote_git_ignore_entry to $git_ignore_file_name"
     fi
   fi
+  # TODO: help out with svn ignore too
+
+  # check if there is a config directory
+  xdg_config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+  config_dir="$xdg_config_home/remote"
+  remote_ignore="$config_dir/remoteignore"
+  cfg_file="$config_dir/remote.cfg"
+  if [ -s "$remote_ignore" ]; then
+     touch .remoteignore
+     while read -r line
+     do
+       printf "$line\n" >> .remoteignore
+       echo "Added $line to .remoteignore"
+     done < $remote_ignore
+  fi
+  # check if RSHELL is set in remote.cfg
+  if [ -s "$cfg_file" ]; then
+    rshell=$(grep RSHELL=.* $cfg_file)
+    if [ "$?" != 0 ]; then
+      echo "No RSHELL setting found in remote.cfg; skipping."
+    else
+      echo "Setting $rshell for this remote"
+      sed -i "" "s/\$/ $rshell/" .remote
+    fi
+  fi
 fi
-# TODO: help out with svn ignore too
