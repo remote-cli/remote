@@ -18,8 +18,3 @@ Executables and purpose
 * remote-quick: execute a command remotely, without syncing the trees
 * remote-add: add another remote host to the mirror list
 * mremote: execute a remote command on all the hosts, after first syncing the local tree with the remote trees
-
-Build a package
----------------
-./build
-

@@ -1,7 +1,0 @@
-#!/bin/bash
-version=`head -n 1 CHANGELOG`
-echo $version
-mkdir remote
-cp -r bin remote/
-tar -cvzf remote-$version.tgz remote
-rm -rf remote

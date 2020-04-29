@@ -1,0 +1,65 @@
+on:
+    push:
+      tags:
+        - v*
+    pull_request:
+      branches:
+        - master
+
+name: Create Release
+
+jobs:
+    bash-tgz:
+      name: Build bash implementation
+      runs-on: ubuntu-latest
+      steps:
+        - name: Check out code
+          uses: actions/checkout@v2
+        - name: Create tgz archive
+          run: |
+            mkdir remote
+            cp -r bin remote
+            tar -cvzf remote-sh.tgz remote
+        - name: Upload release artifact
+          uses: actions/upload-artifact@v2
+          with:
+            name: remote-sh
+            path: remote-sh.tgz
+
+    release:
+      name: Publish release
+      runs-on: ubuntu-latest
+      needs:
+        - bash-tgz
+      if: github.event_name == 'push' && startsWith(github.ref, 'v')
+      steps:
+        - name: Determine release version
+          id: release_info
+          env:
+            TAG: ${{ github.ref }}
+          run: echo "::set-output name=version::${TAG:1}"
+        - name: Fetch bash artifact
+          uses: actions/download-artifact@v2
+          with:
+            name: remote-sh
+        - name: Show release artifacts
+          run: ls -la release
+        - name: Create draft release
+          id: create_release
+          uses: actions/create-release@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            tag_name: ${{ github.ref }}
+            release_name: ${{ github.ref }}
+            draft: true
+            prerelease: true
+        - name: Upload bash artifact
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: ./remote-sh.tgz
+            asset_name: remote-${{ steps.release_info.outputs.version }}-sh.tgz
+            asset_content_type: applictaion/gzip
