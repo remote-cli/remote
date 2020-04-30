@@ -1,3 +1,5 @@
+![Release](https://github.com/shirshanka/remote/workflows/Create%20Release/badge.svg)
+
 remote
 ======
 
