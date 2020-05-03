@@ -54,7 +54,7 @@ get_remote_command_directory()
   local this_dir=`pwd`
   local root_dir=`get_local_directory`
   diff=`echo $this_dir | sed s:$root_dir::`
-  echo `get_remote_directory`$diff
+  echo `get_remote_directory`$diff/
 }
 
 
@@ -267,6 +267,8 @@ ensure_synced()
       else
         echo "Starting sync... (dry run)"
       fi
+      echo rsync -rlpchz $info_flag $verbosity_flag $dry_run_flag --copy-unsafe-links -e "ssh -q" --delete --delete-after $mirror_flag --force \
+        --exclude-from $push_ignores ./ $remote_host:$remote_dir
     fi
     rsync -rlpchz $info_flag $verbosity_flag $dry_run_flag --copy-unsafe-links -e "ssh -q" --delete --delete-after $mirror_flag --force \
       --exclude-from $push_ignores ./ $remote_host:$remote_dir || {
@@ -297,6 +299,7 @@ ensure_synced()
       else
         echo "Starting reverse sync... (dry run)"
       fi
+      echo rsync -rlpmchz $info_flag $verbosity_flag $dry_run_flag --copy-unsafe-links --exclude-from=$pull_ignores --include-from=$pull_includes --include='*/' --exclude='*' $remote_host:$remote_command_dir .
     fi
     rsync -rlpmchz $info_flag $verbosity_flag $dry_run_flag --copy-unsafe-links --exclude-from=$pull_ignores --include-from=$pull_includes --include='*/' --exclude='*' \
       $remote_host:$remote_command_dir . || {
