@@ -10,12 +10,15 @@ def get_version():
 
 
 setuptools.setup(
-    name="remote",
+    name="remote-exec",
     version=get_version(),
     url="https://github.com/shirshanka/remote",
     author="Shirshanka Das",
+    license="BSD-2-CLAUSE",
+    description="A CLI to sync codebases and execute commands remotely",
     package_dir={"": "src"},
     packages=setuptools.find_namespace_packages(where="src"),
+    include_package_data=True,
     entry_points={
         "console_scripts": [
             "remote = remote.entrypoints:remote",

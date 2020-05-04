@@ -91,13 +91,16 @@ cd {self.remote_working_dir}
 {command}
 """
 
-    def execute(self, command: Union[str, List[str]], simple=False, dry_run=False):
+    def execute(self, command: Union[str, List[str]], simple=False, dry_run=False, raise_on_error=True) -> int:
         """Execute a command remotely using ssh
 
         :param command: a command to be executed or its parts
         :param simple: True if command don't need to be preformatted and wrapped before execution.
                        commands with simple will be executed from user's remote home directory
         :param dry_run: log the command to be executed but don't run it
+        :param raise_on_error: raise exception if error code was other than 0
+
+        :returns: an exit code of a remote process
         """
         if isinstance(command, list):
             command = self._prepare_command(command)
@@ -107,19 +110,21 @@ cd {self.remote_working_dir}
         subprocess_command = ["ssh", "-tKq", self.remote.host, command]
         logger.info("Executing:\n%s %s %s <<EOS\n%sEOS", *subprocess_command)
         if dry_run:
-            return
+            return 0
 
         start = time.time()
         result = subprocess.run(subprocess_command, stdout=sys.stdout, stderr=sys.stderr, stdin=sys.stdin)
         runtime = time.time() - start
         logger.info("Execution done in %.2f seconds", runtime)
-        # ssh exits with the exit status of the remote command or with 255 if an error occurred
-        if result.returncode == 255:
-            raise RemoteConnectionError(f"Failed to connect to {self.remote.host}")
-        elif result.returncode != 0:
-            raise RemoteExecutionError(
-                f'Failed to execute "{command}" on host {self.remote.host} ({result.returncode})'
-            )
+        if raise_on_error:
+            # ssh exits with the exit status of the remote command or with 255 if an error occurred
+            if result.returncode == 255:
+                raise RemoteConnectionError(f"Failed to connect to {self.remote.host}")
+            elif result.returncode != 0:
+                raise RemoteExecutionError(
+                    f'Failed to execute "{command}" on host {self.remote.host} ({result.returncode})'
+                )
+        return result.returncode
 
     def push(self, info=False, verbose=False, dry_run=False, mirror=False):
         """Push local workspace files to remote directory
@@ -153,8 +158,6 @@ cd {self.remote_working_dir}
         src = f"{self.remote.host}:{self.remote.directory}/"
         dst = str(self.local_root)
         ignores = self.ignores.compile_pull_ignores()
-        # TODO: figure out why it was used in shell version
-        # extra_args = ["--include='*/'", "--exclude='*'"]
         rsync(src, dst, info=info, verbose=verbose, dry_run=dry_run, excludes=ignores)
 
     def clear_remote(self):

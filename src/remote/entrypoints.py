@@ -162,8 +162,12 @@ def remote():
 
     workspace = SyncedWorkspace.from_cwd()
     workspace.push(dry_run=args.dry_run, verbose=args.verbose, mirror=args.mirror)
-    workspace.execute(args.command, dry_run=args.dry_run)
+    exit_code = workspace.execute(args.command, dry_run=args.dry_run, raise_on_error=False)
+    if exit_code != 0:
+        print(f"Remote command exited with {exit_code}")
     workspace.pull(dry_run=args.dry_run, verbose=args.verbose)
+
+    sys.exit(exit_code)
 
 
 @log_exceptions
@@ -193,7 +197,7 @@ def remote_pull():
 @log_exceptions
 def remote_push(mass=False):
     parser = argparse.ArgumentParser(description="Push local files to remote directory")
-    parser.add_argument("-n", "--dry-run", action="store_true", help="do a dry run of a pull")
+    parser.add_argument("-n", "--dry-run", action="store_true", help="do a dry run of a push")
     parser.add_argument("-m", "--mirror", action="store_true", help="mirror local files on remote host")
     parser.add_argument("-v", "--verbose", action="store_true", help="increase verbosity")
     args = parser.parse_args()

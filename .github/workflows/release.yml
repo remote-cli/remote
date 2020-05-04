@@ -26,11 +26,50 @@ jobs:
             name: remote-sh
             path: remote-sh.tgz
 
+    pyoxidizer-tgz:
+      name: Build bash implementation
+      runs-on: ${{ matrix.os }}
+      strategy:
+        matrix:
+          os: [macos-latest, ubuntu-latest]
+      steps:
+        - name: Check out code
+          uses: actions/checkout@v2
+        - name: Set up cargo
+          uses: actions-rs/toolchain@v1
+          with:
+            profile: minimal
+            toolchain: stable
+            override: true
+        - name: Set up Python
+          uses: actions/setup-python@v1
+          with:
+            python-version: 3.8
+        - name: Install pyoxidizer
+          run: cargo install pyoxidizer
+        - name: Build executable and tgz
+          run: |
+            mkdir -p build/remote/bin
+            pyoxidizer build --release
+            cp build/*/release/exe/remote-exec build/remote/bin
+            pip install -e .
+            python scripts/setup-entrypoints.py build/remote/bin
+            cd build
+            tar -cvzf ../remote-pyoxidizer-${{matrix.os}}.tgz remote
+        - name: Test binary is ok
+          run: build/remote/bin/remote -h
+        - name: Upload release artifact
+          uses: actions/upload-artifact@v2
+          with:
+            name: remote-pyoxidizer-${{matrix.os}}
+            path: remote-pyoxidizer.tgz
+
     release:
       name: Publish release
       runs-on: ubuntu-latest
       needs:
         - bash-tgz
+        - pyoxidizer-tgz
       if: github.event_name == 'push'
       steps:
         - name: Determine release version
@@ -42,8 +81,16 @@ jobs:
           uses: actions/download-artifact@v2
           with:
             name: remote-sh
+        - name: Fetch pyoxidizer macos artifact
+          uses: actions/download-artifact@v2
+          with:
+            name: remote-pyoxidizer-macos-latest
+        - name: Fetch pyoxidizer linux artifact
+          uses: actions/download-artifact@v2
+          with:
+            name: remote-pyoxidizer-ubuntu-latest
         - name: Show release artifacts
-          run: ls -la release
+          run: ls -la .
         - name: Create draft release
           id: create_release
           uses: actions/create-release@v1
@@ -62,4 +109,22 @@ jobs:
             upload_url: ${{ steps.create_release.outputs.upload_url }}
             asset_path: ./remote-sh.tgz
             asset_name: remote-${{ steps.release_info.outputs.version }}-sh.tgz
+            asset_content_type: applictaion/gzip
+        - name: Upload pyoxidizer macos artifact
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: ./remote-pyoxidizer-macos-latest.tgz
+            asset_name: remote-${{ steps.release_info.outputs.version }}-macos.tgz
+            asset_content_type: applictaion/gzip
+        - name: Upload pyoxidizer linux artifact
+          uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: ./remote-pyoxidizer-ubuntu-latest.tgz
+            asset_name: remote-${{ steps.release_info.outputs.version }}-linux.tgz
             asset_content_type: applictaion/gzip
