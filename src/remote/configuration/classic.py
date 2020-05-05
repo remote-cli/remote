@@ -36,7 +36,7 @@ def _resolve_workspace_root(working_dir: Path) -> Optional[Path]:
     return None
 
 
-def _load_configruations(workspace_root: Path) -> List[RemoteConfig]:
+def _load_configurations(workspace_root: Path) -> List[RemoteConfig]:
     config_file = workspace_root / CONFIG_FILE_NAME
 
     configurations = []
@@ -113,7 +113,7 @@ def _load_ignores(workspace_root: Path) -> SyncIgnores:
             elif not is_new_format:
                 raise ConfigurationError(
                     f"Few ignore patters were listed in {IGNORE_FILE_NAME} before the first section {matcher.group(1)} appeared. "
-                    "Please list all ignored files after a section declataion if you use new ignore format"
+                    "Please list all ignored files after a section declaraion if you use new ignore format"
                 )
             active_section = matcher.group(1)
 
@@ -125,7 +125,7 @@ def load_workspace_config(working_dir: Path) -> WorkspaceConfig:
     workspace_root = _resolve_workspace_root(working_dir)
     if workspace_root is None:
         raise ConfigurationError(f"Cannot resolve the remote workspace in {working_dir}")
-    configurations = _load_configruations(workspace_root)
+    configurations = _load_configurations(workspace_root)
     configuration_index = _load_default_configuration_num(workspace_root)
     if configuration_index > len(configurations) - 1:
         raise ConfigurationError(
