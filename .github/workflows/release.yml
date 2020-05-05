@@ -27,7 +27,7 @@ jobs:
             path: remote-sh.tgz
 
     pyoxidizer-tgz:
-      name: Build bash implementation
+      name: Build pyoxidizer implementation
       runs-on: ${{ matrix.os }}
       strategy:
         matrix:
@@ -62,7 +62,7 @@ jobs:
           uses: actions/upload-artifact@v2
           with:
             name: remote-pyoxidizer-${{matrix.os}}
-            path: remote-pyoxidizer.tgz
+            path: remote-pyoxidizer-${{matrix.os}}.tgz
 
     release:
       name: Publish release
