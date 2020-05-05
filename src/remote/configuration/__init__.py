@@ -1,5 +1,4 @@
-import hashlib
-
+from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -7,7 +6,7 @@ from typing import List, Optional, Tuple
 
 @dataclass
 class RemoteConfig:
-    """Single remote connection decription"""
+    """Single remote connection description"""
 
     # remote machine's hostname
     host: str
@@ -31,9 +30,7 @@ class SyncIgnores:
     both: List[str]
 
     def __post_init__(self):
-        self.pull = sorted(set(self.pull))
-        self.push = sorted(set(self.push))
-        self.both = sorted(set(self.both))
+        self.trim()
 
     def compile_push_ignores(self):
         result = set()
@@ -52,6 +49,11 @@ class SyncIgnores:
         new_ignores.update(ignores)
         new_ignores.update(self.both)
         self.both = sorted(new_ignores)
+
+    def trim(self):
+        self.pull = sorted(set(self.pull))
+        self.push = sorted(set(self.push))
+        self.both = sorted(set(self.both))
 
     def is_empty(self):
         return not (self.pull or self.push or self.both)
@@ -75,24 +77,39 @@ class WorkspaceConfig:
     ignores: SyncIgnores
 
     @classmethod
-    def empty(cls) -> "WorkspaceConfig":
-        return cls(root=Path.cwd(), configurations=[], default_configuration=0, ignores=SyncIgnores.new())
-
-    def generate_remote_directory_name(self) -> str:
-        md5 = hashlib.md5(str(self.root).encode()).hexdigest()
-        return f".remotes/{self.root.name}_{md5[:8]}"
+    def empty(cls, root: Path) -> "WorkspaceConfig":
+        return cls(root=root, configurations=[], default_configuration=0, ignores=SyncIgnores.new())
 
     def add_remote_host(
-        self, host, directory: Optional[str] = None, shell: Optional[str] = None, shell_options: Optional[str] = None
+        self, host: str, directory: Path, shell: Optional[str] = None, shell_options: Optional[str] = None
     ) -> Tuple[bool, int]:
         remote_config = RemoteConfig(
-            host=host,
-            directory=Path(directory or self.generate_remote_directory_name()),
-            shell=shell or "sh",
-            shell_options=shell_options or "",
+            host=host, directory=directory, shell=shell or "sh", shell_options=shell_options or "",
         )
         for num, cfg in enumerate(self.configurations):
             if cfg.host == remote_config.host and cfg.directory == remote_config.directory:
                 return False, num
         self.configurations.append(remote_config)
         return True, len(self.configurations) - 1
+
+
+class ConfigurationMedium(metaclass=ABCMeta):
+    """A medium class that knows how to load, save, or process a certain type of configuration layout"""
+
+    @abstractmethod
+    def load_config(self, workspace_root: Path) -> WorkspaceConfig:
+        """Load configuration for the workspace that is located in provided root directory.
+        If this method is called, we could assume that check in `is_workspace_root` passed
+        """
+
+    @abstractmethod
+    def save_config(self, config: WorkspaceConfig):
+        """Save configuration to its root"""
+
+    @abstractmethod
+    def is_workspace_root(self, path: Path) -> bool:
+        """Return true is the path provided contains a configured workspace that can be loaded by this medium"""
+
+    @abstractmethod
+    def generate_remote_directory(self, config: WorkspaceConfig) -> Path:
+        """Renerate a default remote directory path for the workspace with provided configuration"""
