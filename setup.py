@@ -36,4 +36,5 @@ setuptools.setup(
             "mremote-push = remote.entrypoints:mremote_push",
         ],
     },
+    install_requires=['dataclasses; python_version<="3.6"', "click>=7.1.1"],
 )

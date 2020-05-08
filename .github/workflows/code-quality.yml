@@ -25,19 +25,19 @@ jobs:
       run: |
         python -m pip install --upgrade pip setuptools wheel
         pip install -r test_requirements.txt
+        pip install -e .
     - name: Lint with flake8
       run: |
-        flake8 src
+        flake8 src test
     - name: Lint with mypy
       run: |
         mypy -p remote
     - name: Lint with black
       run: |
-        black --check -l 120 src
+        black --check -l 120 src test
     - name: Lint with isort
       run: |
-        isort -rc --check-only src
+        isort -rc --check-only src test
     - name: Test with pytest
       run: |
-        # replace it with pytest once we add some tests
-        echo ok
+        pytest

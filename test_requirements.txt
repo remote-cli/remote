@@ -3,3 +3,4 @@ mypy
 isort
 black
 pytest
+pytest-cov

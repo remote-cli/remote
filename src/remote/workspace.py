@@ -1,16 +1,12 @@
 import logging
-import subprocess
-import sys
-import time
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Union
 
 from .configuration import RemoteConfig, SyncIgnores, WorkspaceConfig
 from .configuration.discovery import load_cwd_workspace_config
-from .exceptions import RemoteConnectionError, RemoteExecutionError
-from .util import rsync
+from .util import prepare_shell_command, rsync, ssh
 
 logger = logging.getLogger(__name__)
 
@@ -65,23 +61,6 @@ class SyncedWorkspace:
 
         return workspaces
 
-    @staticmethod
-    def _prepare_command(command: Sequence[str]) -> str:
-        # This means the whole command is already preformatted for us
-        if len(command) == 1 and " " in command[0]:
-            return command[0]
-
-        result = []
-        for item in command:
-            if not item:
-                continue
-            if " " in item:
-                result.append(f"'{item}'")
-            else:
-                result.append(item)
-
-        return " ".join(result)
-
     def _generate_command(self, command: str) -> str:
         return f"""\
 if [ -f {self.remote.directory}/.remoteenv ]; then
@@ -90,6 +69,32 @@ fi
 cd {self.remote_working_dir}
 {command}
 """
+
+    def execute_in_synced_env(
+        self, command: Union[str, List[str]], simple=False, verbose=False, dry_run=False, mirror=False
+    ) -> int:
+        """Execute a command remotely using ssh. Push the local files to remote location before that and
+        pull them back after command was executed regardless of the result.
+
+        This command won't throw an exception if remote process fails
+
+        :param command: a command to be executed or its parts
+        :param simple: True if command don't need to be preformatted and wrapped before execution.
+                       commands with simple will be executed from user's remote home directory
+        :param dry_run: don't sync files. log the command to be executed but don't run it
+        :param verbose: use verbose logging when running rsync and remote execution
+        :param mirror: mirror local files remotely. It will remove ALL the remote files in the directory
+                       that weren't synced from local workspace
+
+        :returns: an exit code of a remote process
+        """
+
+        self.push(dry_run=dry_run, verbose=verbose, mirror=mirror)
+        exit_code = self.execute(command, simple=simple, dry_run=dry_run, raise_on_error=False)
+        if exit_code != 0:
+            logger.info(f"Remote command exited with {exit_code}")
+        self.pull(dry_run=dry_run, verbose=verbose)
+        return exit_code
 
     def execute(self, command: Union[str, List[str]], simple=False, dry_run=False, raise_on_error=True) -> int:
         """Execute a command remotely using ssh
@@ -102,29 +107,11 @@ cd {self.remote_working_dir}
 
         :returns: an exit code of a remote process
         """
-        if isinstance(command, list):
-            command = self._prepare_command(command)
+        formatted_command = prepare_shell_command(command)
         if not simple:
-            command = self._generate_command(command)
+            formatted_command = self._generate_command(formatted_command)
 
-        subprocess_command = ["ssh", "-tKq", self.remote.host, command]
-        logger.info("Executing:\n%s %s %s <<EOS\n%sEOS", *subprocess_command)
-        if dry_run:
-            return 0
-
-        start = time.time()
-        result = subprocess.run(subprocess_command, stdout=sys.stdout, stderr=sys.stderr, stdin=sys.stdin)
-        runtime = time.time() - start
-        logger.info("Execution done in %.2f seconds", runtime)
-        if raise_on_error:
-            # ssh exits with the exit status of the remote command or with 255 if an error occurred
-            if result.returncode == 255:
-                raise RemoteConnectionError(f"Failed to connect to {self.remote.host}")
-            elif result.returncode != 0:
-                raise RemoteExecutionError(
-                    f'Failed to execute "{command}" on host {self.remote.host} ({result.returncode})'
-                )
-        return result.returncode
+        return ssh(self.remote.host, formatted_command, dry_run=dry_run, raise_on_error=raise_on_error)
 
     def push(self, info=False, verbose=False, dry_run=False, mirror=False):
         """Push local workspace files to remote directory
