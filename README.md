@@ -1,12 +1,15 @@
-![Release](https://github.com/shirshanka/remote/workflows/Create%20Release/badge.svg)
-
-remote
+Remote
 ======
 
+[![Code Quality](https://github.com/remote-cli/remote/workflows/Python%20Code%20Quality/badge.svg)](https://github.com/remote-cli/remote/actions?query=branch%3Amaster+workflow%3A%22Python+Code+Quality%22)
+[![pypi](https://img.shields.io/pypi/v/remote-exec.svg)](https://pypi.org/project/remote-exec)
+[![versions](https://img.shields.io/pypi/pyversions/remote-exec.svg)](https://github.com/remote-cli/remote)
+[![license](https://img.shields.io/github/license/remote-cli/remote.svg)](https://github.com/remote-cli/remote/blob/master/LICENSE)
+
 Work with remote hosts seamlessly
-Remote uses rsync and ssh to create a seamless working environment from a local directory to remote directories. 
+Remote uses rsync and ssh to create a seamless working environment from a local directory to remote directories.
 Most used features are:
-* Remotely execute commands from any sub-directory. 
+* Remotely execute commands from any sub-directory.
 * Drop into remote interactive sessions.
 * Fire off parallel remote commands on multiple hosts.
 

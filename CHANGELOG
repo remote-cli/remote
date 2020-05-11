@@ -1,4 +1,5 @@
 1.3.8
+-----
 * Unit tests
 * Releases with good versions
 
@@ -80,6 +81,7 @@
 -----
 * remote-pull: now pulls without syncing the trees
 * remote-quick: when you want to execute a command without syncing the trees
+
 1.1.2
 ---
 * More fixes to md5 generation (verified to work on mac and linux)
@@ -88,7 +90,7 @@
 1.1.1
 ---
 * Robust in finding appropriate md5 utility
- 
+
 1.1
 ---
 * Added remote-pull
