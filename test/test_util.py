@@ -69,7 +69,7 @@ def test_rsync_copies_files_with_mirror(tmp_path):
 @patch("remote.util.subprocess.run")
 def test_rsync_respects_all_options(mock_run):
     mock_run.return_value = MagicMock(returncode=0)
-    rsync(f"src/", "dst", info=True, verbose=True, mirror=True, dry_run=True, extra_args=["--some-extra"])
+    rsync("src/", "dst", info=True, verbose=True, mirror=True, dry_run=True, extra_args=["--some-extra"])
 
     mock_run.assert_called_once_with(
         [
@@ -100,7 +100,7 @@ def test_rsync_throws_exception_on_bad_return_code(mock_run):
     mock_run.return_value.returncode = 1
 
     with pytest.raises(RemoteConnectionError):
-        rsync(f"src/", "dst")
+        rsync("src/", "dst")
 
 
 @pytest.mark.parametrize("returncode", [0, 1])
@@ -120,7 +120,7 @@ def test_rsync_always_removes_temporary_files(mock_temp_file, mock_run, returnco
     mock_temp_file.side_effect = ignore_file
 
     try:
-        rsync(f"src/", "dst", excludes=["f*"], includes=["*.txt"])
+        rsync("src/", "dst", excludes=["f*"], includes=["*.txt"])
     except Exception:
         pass
 

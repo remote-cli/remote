@@ -17,6 +17,7 @@ from typing import Dict, List, Tuple
 from remote.exceptions import ConfigurationError
 
 from . import ConfigurationMedium, RemoteConfig, SyncIgnores, WorkspaceConfig
+from .shared import DEFAULT_REMOTE_ROOT
 
 CONFIG_FILE_NAME = ".remote"
 INDEX_FILE_NAME = ".remoteindex"
@@ -223,7 +224,7 @@ class ClassicConfigurationMedium(ConfigurationMedium):
             ignores=ignores,
         )
 
-    def save_config(self, config: WorkspaceConfig):
+    def save_config(self, config: WorkspaceConfig) -> None:
         save_general_config(config.root / CONFIG_FILE_NAME, config.configurations)
         save_ignores(config.root / IGNORE_FILE_NAME, config.ignores)
         save_index(config.root / INDEX_FILE_NAME, config.default_configuration)
@@ -233,4 +234,4 @@ class ClassicConfigurationMedium(ConfigurationMedium):
 
     def generate_remote_directory(self, config: WorkspaceConfig) -> Path:
         md5 = hashlib.md5(str(config.root).encode()).hexdigest()
-        return Path(f".remotes/{config.root.name}_{md5[:8]}")
+        return Path(f"{DEFAULT_REMOTE_ROOT}/{config.root.name}_{md5[:8]}")

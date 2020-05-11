@@ -15,7 +15,7 @@ def make_exe(dist):
         include_test=False,
     )
 
-    exe.add_in_memory_python_resources(dist.pip_install(["."]))
+    exe.add_in_memory_python_resources(dist.pip_install(["--no-binary", ":all:", "."]))
 
     return exe
 
