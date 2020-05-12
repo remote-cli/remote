@@ -28,10 +28,7 @@ jobs:
 
     pyoxidizer-tgz:
       name: Build pyoxidizer implementation
-      runs-on: ${{ matrix.os }}
-      strategy:
-        matrix:
-          os: [macos-latest, ubuntu-latest]
+      runs-on: macos-latest
       steps:
         - name: Check out code
           uses: actions/checkout@v2
@@ -55,14 +52,42 @@ jobs:
             pip install -e .
             python scripts/setup-entrypoints.py build/remote/bin
             cd build
-            tar -cvzf ../remote-pyoxidizer-${{matrix.os}}.tgz remote
+            tar -cvzf ../remote-pyoxidizer-macos-latest.tgz remote
         - name: Test binary is ok
           run: build/remote/bin/remote -h
         - name: Upload release artifact
           uses: actions/upload-artifact@v2
           with:
-            name: remote-pyoxidizer-${{matrix.os}}
-            path: remote-pyoxidizer-${{matrix.os}}.tgz
+            name: remote-pyoxidizer-macos-latest
+            path: remote-pyoxidizer-macos-latest.tgz
+
+    shiv-tgz:
+      name: Build shiv implementation
+      runs-on: ubuntu-latest
+      steps:
+        - name: Check out code
+          uses: actions/checkout@v2
+        - name: Set up Python
+          uses: actions/setup-python@v1
+          with:
+            python-version: 3.6
+        - name: Install shiv
+          run: pip install shiv
+        - name: Build executable and tgz
+          run: |
+            mkdir -p build/remote/bin
+            shiv -p /usr/bin/python3 -o build/remote/bin/remote-exec --no-binary :all: .
+            pip install -e .
+            python scripts/setup-entrypoints.py build/remote/bin --shiv
+            cd build
+            tar -cvzf ../remote-shiv.tgz remote
+        - name: Test binary is ok
+          run: build/remote/bin/remote -h
+        - name: Upload release artifact
+          uses: actions/upload-artifact@v2
+          with:
+            name: remote-shiv
+            path: remote-shiv.tgz
 
     release:
       name: Publish release
@@ -70,13 +95,14 @@ jobs:
       needs:
         - bash-tgz
         - pyoxidizer-tgz
+        - shiv-tgz
       if: github.event_name == 'push'
       steps:
         - name: Determine release version
           id: release_info
           env:
             TAG: ${{ github.ref }}
-          run: echo "::set-output name=version::${TAG:1}"
+          run: echo "::set-output name=version::${TAG:11}"
         - name: Fetch bash artifact
           uses: actions/download-artifact@v2
           with:
@@ -85,10 +111,10 @@ jobs:
           uses: actions/download-artifact@v2
           with:
             name: remote-pyoxidizer-macos-latest
-        - name: Fetch pyoxidizer linux artifact
+        - name: Fetch shiv multiplatform artifact
           uses: actions/download-artifact@v2
           with:
-            name: remote-pyoxidizer-ubuntu-latest
+            name: remote-shiv
         - name: Show release artifacts
           run: ls -la .
         - name: Create draft release
@@ -119,12 +145,12 @@ jobs:
             asset_path: ./remote-pyoxidizer-macos-latest.tgz
             asset_name: remote-${{ steps.release_info.outputs.version }}-macos.tgz
             asset_content_type: applictaion/gzip
-        - name: Upload pyoxidizer linux artifact
+        - name: Upload shiv artifact
           uses: actions/upload-release-asset@v1
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }}
-            asset_path: ./remote-pyoxidizer-ubuntu-latest.tgz
-            asset_name: remote-${{ steps.release_info.outputs.version }}-linux.tgz
+            asset_path: ./remote-shiv.tgz
+            asset_name: remote-${{ steps.release_info.outputs.version }}-shiv.tgz
             asset_content_type: applictaion/gzip
