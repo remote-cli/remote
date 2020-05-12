@@ -10,11 +10,12 @@ import click
 
 from .configuration import WorkspaceConfig
 from .configuration.discovery import get_configuration_medium, load_cwd_workspace_config, save_config
+from .configuration.shared import HOST_REGEX, PATH_REGEX
 from .exceptions import RemoteError
 from .workspace import SyncedWorkspace
 
 BASE_LOGGING_FORMAT = "%(message)s"
-CONNECTION_STRING_FORMAT_REGEX = re.compile(r"^[-\w]+(\.[-\w]+)*(:(/)?[-.\w\s]+(/[-.\w\s]+)*)?(/)?$")
+CONNECTION_STRING_FORMAT_REGEX = re.compile(f"^{HOST_REGEX}(:{PATH_REGEX})?$")
 DEFAULT_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 EXECUTION_CONTEXT_SETTINGS = dict(
     help_option_names=["-h", "--help"], ignore_unknown_options=True, allow_interspersed_args=False
@@ -67,11 +68,11 @@ def _add_remote_host(config: WorkspaceConfig, connection: str):
     code = workspace.execute(f"mkdir -p {workspace.remote.directory}", simple=True, raise_on_error=False)
     if code != 0:
         click.secho(f"Failed to create {workspace.remote.directory} on remote host {remote_host}", fg="yellow")
-        click.secho(f"Please check if host is accessible via SSH", fg="yellow")
+        click.secho("Please check if host is accessible via SSH", fg="yellow")
         sys.exit(1)
 
     click.echo(f"Created remote directory at {workspace.remote.host}:{workspace.remote.directory}")
-    click.echo(f"Remote is configured and ready to use")
+    click.echo("Remote is configured and ready to use")
 
     # No errors when executing the above code means we can save the config
     config_medium.save_config(config)
@@ -162,7 +163,7 @@ def remote_set(index: int):
         )
         sys.exit(1)
     elif index < 1:
-        click.secho(f"Index should be 1 or higher", fg="yellow")
+        click.secho("Index should be 1 or higher", fg="yellow")
         sys.exit(1)
     # we use 0-base index internally
     index = index - 1

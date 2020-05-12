@@ -5,8 +5,9 @@ from remote.exceptions import ConfigurationError
 
 from . import ConfigurationMedium, WorkspaceConfig
 from .classic import ClassicConfigurationMedium
+from .toml import TomlConfigurationMedium
 
-CONFIG_MEDIUMS: List[ConfigurationMedium] = [ClassicConfigurationMedium()]
+CONFIG_MEDIUMS: List[ConfigurationMedium] = [ClassicConfigurationMedium(), TomlConfigurationMedium()]
 
 
 def resolve_workspace_root(working_dir: Path) -> Tuple[ConfigurationMedium, Path]:

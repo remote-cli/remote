@@ -345,7 +345,7 @@ def test_remote_set(tmp_workspace):
         bad_attempt_result = runner.invoke(entrypoints.remote_set, ["10"])
 
     assert set_result.exit_code == 0
-    assert host_result.output == f"new-host\n"
+    assert host_result.output == "new-host\n"
     assert bad_attempt_result.exit_code == 1
     assert (tmp_workspace / INDEX_FILE_NAME).read_text() == "2\n"
 
@@ -631,7 +631,7 @@ def test_remote_push_mass(mock_run, tmp_workspace):
                     "--exclude-from",
                     ANY,
                     f"{tmp_workspace}/",
-                    f"new-host:other-directory",
+                    "new-host:other-directory",
                 ],
                 stdout=ANY,
                 stderr=ANY,

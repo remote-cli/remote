@@ -13,9 +13,9 @@ class RemoteConfig:
     # relative path to the working directory on remote machine starting from user home dir
     directory: Path
     # a shell to use on remote machine
-    shell: str
+    shell: str = "sh"
     # shell options to use on remote machine
-    shell_options: str
+    shell_options: str = ""
 
 
 @dataclass
@@ -103,7 +103,7 @@ class ConfigurationMedium(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def save_config(self, config: WorkspaceConfig):
+    def save_config(self, config: WorkspaceConfig) -> None:
         """Save configuration to its root"""
 
     @abstractmethod
