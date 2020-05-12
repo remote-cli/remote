@@ -52,7 +52,7 @@ setuptools.setup(
     ],
     python_requires=">=3.6",
     package_dir={"": "src"},
-    packages=["remote"],
+    packages=["remote", "remote.configuration"],
     include_package_data=True,
     package_data={"remote": ["py.typed"]},
     entry_points={
