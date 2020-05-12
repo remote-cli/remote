@@ -9,6 +9,19 @@ def get_version():
         return f.readline().strip()
 
 
+def get_long_description():
+    root = os.path.dirname(__file__)
+    with open(os.path.join(root, "README.md")) as f:
+        description = f.read()
+
+    description += "\n\nChangelog\n=========\n\n"
+
+    with open(os.path.join(root, "CHANGELOG")) as f:
+        description += f.read()
+
+    return description
+
+
 setuptools.setup(
     name="remote-exec",
     version=get_version(),
@@ -16,9 +29,32 @@ setuptools.setup(
     author="Shirshanka Das",
     license="BSD-2-CLAUSE",
     description="A CLI to sync codebases and execute commands remotely",
+    long_description=get_long_description(),
+    long_description_content_type="text/markdown",
+    classifiers=[
+        "Development Status :: 5 - Production/Stable",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Intended Audience :: Developers",
+        "Intended Audience :: Information Technology",
+        "Intended Audience :: System Administrators",
+        "License :: OSI Approved",
+        "License :: OSI Approved :: BSD License",
+        "Operating System :: Unix",
+        "Operating System :: POSIX :: Linux",
+        "Environment :: Console",
+        "Environment :: MacOS X",
+        "Topic :: Software Development",
+    ],
+    python_requires=">=3.6",
     package_dir={"": "src"},
-    packages=setuptools.find_namespace_packages(where="src"),
+    packages=["remote"],
     include_package_data=True,
+    package_data={"remote": ["py.typed"]},
     entry_points={
         "console_scripts": [
             "remote = remote.entrypoints:remote",
