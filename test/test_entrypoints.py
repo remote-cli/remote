@@ -365,11 +365,13 @@ def test_remote(mock_run, tmp_workspace):
             call(
                 [
                     "rsync",
-                    "-rlpmchz",
+                    "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
                     "ssh -q",
                     "--force",
+                    "--rsync-path",
+                    "mkdir -p .remotes/myproject && rsync",
                     "--exclude-from",
                     ANY,
                     f"{tmp_workspace}/",
@@ -397,7 +399,7 @@ echo test >> .file
             call(
                 [
                     "rsync",
-                    "-rlpmchz",
+                    "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
                     "ssh -q",
@@ -429,11 +431,13 @@ def test_remote_execution_fail(mock_run, tmp_workspace):
             call(
                 [
                     "rsync",
-                    "-rlpmchz",
+                    "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
                     "ssh -q",
                     "--force",
+                    "--rsync-path",
+                    "mkdir -p .remotes/myproject && rsync",
                     "--exclude-from",
                     ANY,
                     f"{tmp_workspace}/",
@@ -461,7 +465,7 @@ echo 'test >> .file'
             call(
                 [
                     "rsync",
-                    "-rlpmchz",
+                    "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
                     "ssh -q",
@@ -491,11 +495,13 @@ def test_remote_sync_fail(mock_run, tmp_workspace):
     mock_run.assert_called_once_with(
         [
             "rsync",
-            "-rlpmchz",
+            "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
             "ssh -q",
             "--force",
+            "--rsync-path",
+            "mkdir -p .remotes/myproject && rsync",
             "--exclude-from",
             ANY,
             f"{tmp_workspace}/",
@@ -572,12 +578,14 @@ def test_remote_push(mock_run, tmp_workspace):
     mock_run.assert_called_once_with(
         [
             "rsync",
-            "-rlpmchz",
+            "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
             "ssh -q",
             "--force",
             "-i",
+            "--rsync-path",
+            "mkdir -p .remotes/myproject && rsync",
             "--exclude-from",
             ANY,
             f"{tmp_workspace}/",
@@ -605,12 +613,14 @@ def test_remote_push_mass(mock_run, tmp_workspace):
             call(
                 [
                     "rsync",
-                    "-rlpmchz",
+                    "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
                     "ssh -q",
                     "--force",
                     "-i",
+                    "--rsync-path",
+                    "mkdir -p .remotes/myproject && rsync",
                     "--exclude-from",
                     ANY,
                     f"{tmp_workspace}/",
@@ -622,12 +632,14 @@ def test_remote_push_mass(mock_run, tmp_workspace):
             call(
                 [
                     "rsync",
-                    "-rlpmchz",
+                    "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
                     "ssh -q",
                     "--force",
                     "-i",
+                    "--rsync-path",
+                    "mkdir -p other-directory && rsync",
                     "--exclude-from",
                     ANY,
                     f"{tmp_workspace}/",
@@ -652,7 +664,7 @@ def test_remote_pull(mock_run, tmp_workspace):
     mock_run.assert_called_once_with(
         [
             "rsync",
-            "-rlpmchz",
+            "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
             "ssh -q",
@@ -683,7 +695,7 @@ def test_remote_pull_subdirs(mock_run, tmp_workspace):
             call(
                 [
                     "rsync",
-                    "-rlpmchz",
+                    "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
                     "ssh -q",
@@ -698,7 +710,7 @@ def test_remote_pull_subdirs(mock_run, tmp_workspace):
             call(
                 [
                     "rsync",
-                    "-rlpmchz",
+                    "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
                     "ssh -q",

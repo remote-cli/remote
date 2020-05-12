@@ -72,11 +72,13 @@ def test_push(mock_run, workspace):
     mock_run.assert_called_once_with(
         [
             "rsync",
-            "-rlpmchz",
+            "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
             "ssh -q",
             "--force",
+            "--rsync-path",
+            "mkdir -p remote/dir && rsync",
             f"{workspace.local_root}/",
             f"{workspace.remote.host}:{workspace.remote.directory}",
         ],
@@ -93,7 +95,7 @@ def test_pull(mock_run, workspace):
     mock_run.assert_called_once_with(
         [
             "rsync",
-            "-rlpmchz",
+            "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
             "ssh -q",
@@ -116,7 +118,7 @@ def test_pull_with_subdir(mock_run, workspace):
     mock_run.assert_called_once_with(
         [
             "rsync",
-            "-rlpmchz",
+            "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
             "ssh -q",
@@ -164,11 +166,13 @@ def test_execute_and_sync(mock_run, workspace):
             call(
                 [
                     "rsync",
-                    "-rlpmchz",
+                    "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
                     "ssh -q",
                     "--force",
+                    "--rsync-path",
+                    "mkdir -p remote/dir && rsync",
                     f"{workspace.local_root}/",
                     f"{workspace.remote.host}:{workspace.remote.directory}",
                 ],
@@ -195,7 +199,7 @@ echo 'Hello World!'
             call(
                 [
                     "rsync",
-                    "-rlpmchz",
+                    "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
                     "ssh -q",

@@ -65,8 +65,9 @@ def _add_remote_host(config: WorkspaceConfig, connection: str):
 
     # Check if we can connect to the remote host and create a directory there
     workspace = SyncedWorkspace.from_config(config, config.root, index)
-    code = workspace.execute(f"mkdir -p {workspace.remote.directory}", simple=True, raise_on_error=False)
-    if code != 0:
+    try:
+        workspace.create_remote()
+    except RemoteError:
         click.secho(f"Failed to create {workspace.remote.directory} on remote host {remote_host}", fg="yellow")
         click.secho("Please check if host is accessible via SSH", fg="yellow")
         sys.exit(1)

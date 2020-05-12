@@ -5,7 +5,6 @@ This configuration may have three meaningful files:
 .remoteindex (optional) - information about which connection from options above to use
 .remoteignore (optional) - information about files that should be ignore when syncing files
 """
-import hashlib
 import os
 import re
 
@@ -17,7 +16,7 @@ from typing import Dict, List, Tuple
 from remote.exceptions import ConfigurationError
 
 from . import ConfigurationMedium, RemoteConfig, SyncIgnores, WorkspaceConfig
-from .shared import DEFAULT_REMOTE_ROOT
+from .shared import DEFAULT_REMOTE_ROOT, hash_path
 
 CONFIG_FILE_NAME = ".remote"
 INDEX_FILE_NAME = ".remoteindex"
@@ -233,5 +232,5 @@ class ClassicConfigurationMedium(ConfigurationMedium):
         return (path / CONFIG_FILE_NAME).exists()
 
     def generate_remote_directory(self, config: WorkspaceConfig) -> Path:
-        md5 = hashlib.md5(str(config.root).encode()).hexdigest()
-        return Path(f"{DEFAULT_REMOTE_ROOT}/{config.root.name}_{md5[:8]}")
+        md5 = hash_path(config.root)
+        return Path(f"{DEFAULT_REMOTE_ROOT}/{config.root.name}_{md5}")

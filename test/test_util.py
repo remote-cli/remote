@@ -74,7 +74,7 @@ def test_rsync_respects_all_options(mock_run):
     mock_run.assert_called_once_with(
         [
             "rsync",
-            "-rlpmchz",
+            "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
             "ssh -q",
