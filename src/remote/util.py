@@ -67,7 +67,7 @@ def rsync(
     """
 
     logger.info("Sync files from %s to %s", src, dst)
-    args = ["rsync", "-rlpmchz", "--copy-unsafe-links", "-e", "ssh -q", "--force"]
+    args = ["rsync", "-arlpmchz", "--copy-unsafe-links", "-e", "ssh -q", "--force"]
     if info:
         args.append("-i")
     if verbose:

@@ -125,7 +125,18 @@ cd {self.remote_working_dir}
         src = f"{self.local_root}/"
         dst = f"{self.remote.host}:{self.remote.directory}"
         ignores = self.ignores.compile_push_ignores()
-        rsync(src, dst, info=info, verbose=verbose, dry_run=dry_run, mirror=mirror, excludes=ignores)
+        # If remote directory structure is deep and it was deleted, we need an rsync-path to recreate it before copying
+        extra_args = ["--rsync-path", f"mkdir -p {self.remote.directory} && rsync"]
+        rsync(
+            src,
+            dst,
+            info=info,
+            verbose=verbose,
+            dry_run=dry_run,
+            mirror=mirror,
+            excludes=ignores,
+            extra_args=extra_args,
+        )
 
     def pull(self, info=False, verbose=False, dry_run=False, subpath=None):
         """Pull remote files to local workspace
@@ -150,3 +161,7 @@ cd {self.remote_working_dir}
     def clear_remote(self):
         """Remove remote directory"""
         self.execute(f"rm -rf {self.remote.directory}", simple=True)
+
+    def create_remote(self):
+        """Remove remote directory"""
+        self.execute(f"mkdir -p {self.remote.directory}", simple=True)

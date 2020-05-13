@@ -61,12 +61,11 @@ Instead of overwriting values, the workspace config can extend some values
     exclude = ["workspace-specific-dir"]
 
 """
-import hashlib
 import re
 
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import toml
 
@@ -75,7 +74,7 @@ from pydantic import BaseModel, Field, ValidationError, validator
 from remote.exceptions import ConfigurationError
 
 from . import ConfigurationMedium, RemoteConfig, SyncIgnores, WorkspaceConfig
-from .shared import DEFAULT_REMOTE_ROOT, HOST_REGEX
+from .shared import DEFAULT_REMOTE_ROOT, HOST_REGEX, hash_path
 
 WORKSPACE_CONFIG = ".remote.toml"
 GLOBAL_CONFIG = ".config/remote/defaults.toml"
@@ -99,9 +98,12 @@ class ConnectionConfig(ConfigModel):
 
 class SyncRulesConfig(ConfigModel):
     exclude: List[str] = Field(default_factory=list)
+    include_vsc_ignore_patterns: Optional[bool] = None
 
     def extend(self, other: "SyncRulesConfig") -> None:
         self.exclude.extend(other.exclude)
+        if other.include_vsc_ignore_patterns is not None:
+            self.include_vsc_ignore_patterns = other.include_vsc_ignore_patterns
 
 
 class WorkCycleConfig(ConfigModel):
@@ -122,6 +124,7 @@ def hosts_can_have_only_one_default(cls, hosts):
 
 class GeneralConfig(ConfigModel):
     allow_uninitiated_workspaces: bool = Field(default=False)
+    use_relative_remote_paths: bool = Field(default=False)
     remote_root: Path = Field(default=Path(DEFAULT_REMOTE_ROOT))
 
 
@@ -129,6 +132,15 @@ class GlobalConfig(WorkCycleConfig):
     general: GeneralConfig = Field(default_factory=GeneralConfig)
 
     hosts_default = validator("hosts", allow_reuse=True)(hosts_can_have_only_one_default)
+
+    @validator("hosts")
+    def no_directories_in_hosts(cls, hosts):
+        if not hosts:
+            return hosts
+
+        for host in hosts:
+            assert host.directory is None, "cannot specify directory in global host config"
+        return hosts
 
 
 class LocalConfig(WorkCycleConfig):
@@ -203,20 +215,51 @@ def _merge_field(field: str, global_config: GlobalConfig, local_config: LocalCon
     return result
 
 
-def _get_exclude(sync_rules: Optional[SyncRulesConfig]) -> List[str]:
+def _get_exclude(sync_rules: Optional[SyncRulesConfig], workspace_root: Path) -> List[str]:
     if sync_rules is None:
         return []
-    return sync_rules.exclude
+    exclude = sync_rules.exclude
+
+    gitignore = workspace_root / ".gitignore"
+    if sync_rules.include_vsc_ignore_patterns and gitignore.exists():
+        with gitignore.open() as f:
+            for line in f.readlines():
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+
+                exclude.append(line)
+    return exclude
 
 
-def _merge_excludes(
-    value: List[str],
-    local: Optional[SyncRulesConfig],
-    local_extension: Optional[SyncRulesConfig],
-    _global: Optional[SyncRulesConfig],
-    has_extension_excludes: bool,
-) -> Tuple[bool, Optional[SyncRulesConfig]]:
-    return False, SyncRulesConfig(exclude=value)
+def _clean_up_dict(data_dict: Dict[str, Any]) -> None:
+    for key in data_dict:
+        if isinstance(data_dict[key], Path):
+            data_dict[key] = str(data_dict[key])
+        elif isinstance(data_dict[key], dict):
+            _clean_up_dict(data_dict[key])
+        elif isinstance(data_dict[key], (list, tuple)):
+            for item in data_dict[key]:
+                if isinstance(item, dict):
+                    _clean_up_dict(item)
+
+
+def _save_config_file(config: ConfigModel, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    dict_data = config.dict()
+    # this changes make toml file parsable and more readable from human's point of view
+    _clean_up_dict(dict_data)
+    for item in dict_data.get("hosts", []):
+        if not item["default"]:
+            del item["default"]
+
+    with path.open("w") as f:
+        toml.dump(dict_data, f)
+
+
+def save_global_config(config: GlobalConfig) -> None:
+    _save_config_file(config, Path.home() / GLOBAL_CONFIG)
 
 
 class TomlConfigurationMedium(ConfigurationMedium):
@@ -253,9 +296,9 @@ class TomlConfigurationMedium(ConfigurationMedium):
                 )
             )
         ignores = SyncIgnores(
-            pull=_get_exclude(merged_config.pull),
-            push=_get_exclude(merged_config.push),
-            both=_get_exclude(merged_config.both) + [WORKSPACE_CONFIG],
+            pull=_get_exclude(merged_config.pull, workspace_root),
+            push=_get_exclude(merged_config.push, workspace_root),
+            both=_get_exclude(merged_config.both, workspace_root) + [WORKSPACE_CONFIG],
         )
 
         return WorkspaceConfig(
@@ -283,24 +326,22 @@ class TomlConfigurationMedium(ConfigurationMedium):
         for key, value in asdict(config.ignores).items():
             setattr(local_config, key, SyncRulesConfig(exclude=value))
 
-        dict_data = local_config.dict()
-        for item in dict_data["hosts"]:
-            # this changes make toml file parsable and more readable from human's point of view
-            item["directory"] = str(item["directory"])
-            if not item["default"]:
-                del item["default"]
-
-        config_file = config.root / WORKSPACE_CONFIG
-        with config_file.open("w") as f:
-            toml.dump(dict_data, f)
+        _save_config_file(local_config, config.root / WORKSPACE_CONFIG)
 
     def is_workspace_root(self, path: Path) -> bool:
         return (path / WORKSPACE_CONFIG).exists() or self.global_config.general.allow_uninitiated_workspaces
 
     def generate_remote_directory(self, config: WorkspaceConfig) -> Path:
-        md5 = hashlib.md5(str(config.root).encode()).hexdigest()
-        return Path(f"{self.global_config.general.remote_root}/{config.root.name}_{md5[:8]}")
+        return self._generate_remote_directory_from_path(config.root)
 
     def _generate_remote_directory_from_path(self, path: Path) -> Path:
-        md5 = hashlib.md5(str(path).encode()).hexdigest()
-        return Path(f"{self.global_config.general.remote_root}/{path.name}_{md5[:8]}")
+        if self.global_config.general.use_relative_remote_paths:
+            try:
+                relative_path = path.relative_to(Path.home())
+            except ValueError:
+                # the workspace is not under home directory
+                relative_path = path.relative_to(Path("/"))
+            return self.global_config.general.remote_root / relative_path
+        else:
+            md5 = hash_path(path)
+            return Path(f"{self.global_config.general.remote_root}/{path.name}_{md5}")

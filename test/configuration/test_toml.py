@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from remote.configuration import RemoteConfig, SyncIgnores, WorkspaceConfig
+from remote.configuration.shared import hash_path
 from remote.configuration.toml import (
     DEFAULT_REMOTE_ROOT,
     GLOBAL_CONFIG,
@@ -16,6 +17,7 @@ from remote.configuration.toml import (
     WorkCycleConfig,
     load_global_config,
     load_local_config,
+    save_global_config,
 )
 from remote.exceptions import ConfigurationError
 
@@ -31,7 +33,6 @@ remote_root = "my-remotes"
 
 [[hosts]]
 host = "test-host.example.com"
-directory = ".remotes/workspace"
 default = true
 
 [push]
@@ -47,7 +48,7 @@ exclude = ["build"]
 
     config = load_global_config()
     assert config == GlobalConfig(
-        hosts=[ConnectionConfig(host="test-host.example.com", directory=".remotes/workspace", default=True)],
+        hosts=[ConnectionConfig(host="test-host.example.com", directory=None, default=True)],
         push=SyncRulesConfig(exclude=["env", ".git"]),
         pull=SyncRulesConfig(exclude=["src/generated"]),
         both=SyncRulesConfig(exclude=["build"]),
@@ -73,7 +74,6 @@ def test_load_global_config_no_file(mock_home):
             """\
 [[hosts]]
 host = "other-host.example.com"
-directory = ".remotes/other-workspace"
 default = "meow"
 
 [push]
@@ -89,6 +89,20 @@ Invalid value in configuration file /root/.config/remote/defaults.toml:
 [[hosts]]
 host = "other-host.example.com"
 directory = ".remotes/other-workspace"
+default = true
+
+[push]
+exclude = ["env", ".git"]
+""",
+            """\
+Invalid value in configuration file /root/.config/remote/defaults.toml:
+  - hosts: cannot specify directory in global host config\
+""",
+        ),
+        (
+            """\
+[[hosts]]
+host = "other-host.example.com"
 default = true
 meow = "mewo"
 
@@ -111,6 +125,41 @@ def test_load_global_config_error(mock_home, config_text, error_text):
         load_global_config()
 
     assert str(e.value).replace(str(mock_home), "/root") == error_text
+
+
+def test_save_global_config(mock_home):
+    save_global_config(
+        GlobalConfig(
+            hosts=[ConnectionConfig(host="test-host.example.com", directory=None, default=True)],
+            push=SyncRulesConfig(exclude=["env", ".git"]),
+            pull=SyncRulesConfig(exclude=["src/generated"]),
+            both=SyncRulesConfig(exclude=["build"]),
+            general=GeneralConfig(allow_uninitiated_workspaces=True, remote_root="my-remotes"),
+        )
+    )
+
+    assert (
+        (mock_home / GLOBAL_CONFIG).read_text()
+        == """\
+[[hosts]]
+host = "test-host.example.com"
+default = true
+
+[push]
+exclude = [ "env", ".git",]
+
+[pull]
+exclude = [ "src/generated",]
+
+[both]
+exclude = [ "build",]
+
+[general]
+allow_uninitiated_workspaces = true
+use_relative_remote_paths = false
+remote_root = "my-remotes"
+"""
+    )
 
 
 def test_load_local_config(tmp_path):
@@ -235,16 +284,15 @@ def test_load_local_config_error(mock_home, config_text, error_text):
         (
             """\
 [general]
+use_relative_remote_paths = true
 allow_uninitiated_workspaces = true
 remote_root = "my-remotes"
 
 [[hosts]]
 host = "test-host.example.com"
-directory = ".remotes/workspace"
 
 [[hosts]]
 host = "other-host.example.com"
-directory = ".remotes/other-workspace"
 default = true
 
 [push]
@@ -260,8 +308,8 @@ exclude = ["build"]
             WorkspaceConfig(
                 root=Path("/root/foo/bar"),
                 configurations=[
-                    RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace")),
-                    RemoteConfig(host="other-host.example.com", directory=Path(".remotes/other-workspace")),
+                    RemoteConfig(host="test-host.example.com", directory=Path("my-remotes/foo/bar")),
+                    RemoteConfig(host="other-host.example.com", directory=Path("my-remotes/foo/bar")),
                 ],
                 default_configuration=1,
                 ignores=SyncIgnores(pull=["src/generated"], push=[".git", "env"], both=["build", ".remote.toml"]),
@@ -270,9 +318,11 @@ exclude = ["build"]
         # Settings from local config overwrite global ones
         (
             """\
+[general]
+use_relative_remote_paths = true
+
 [[hosts]]
 host = "other-host.example.com"
-directory = ".remotes/other-workspace"
 default = true
 
 [push]
@@ -302,9 +352,11 @@ exclude = []
         # Settings from local config extend and overwrite global ones. Defaults collision is resolved
         (
             """\
+[general]
+use_relative_remote_paths = true
+
 [[hosts]]
 host = "other-host.example.com"
-directory = ".remotes/other-workspace"
 default = true
 
 [push]
@@ -331,7 +383,7 @@ exclude = []
             WorkspaceConfig(
                 root=Path("/root/foo/bar"),
                 configurations=[
-                    RemoteConfig(host="other-host.example.com", directory=Path(".remotes/other-workspace")),
+                    RemoteConfig(host="other-host.example.com", directory=Path(".remotes/foo/bar")),
                     RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace")),
                 ],
                 default_configuration=1,
@@ -399,6 +451,28 @@ exclude = ["extend", "push"]
                 ignores=SyncIgnores(pull=[], push=["extend", "push"], both=[".remote.toml"]),
             ),
         ),
+        # No local config, global config has no directory and supports relative remote paths
+        (
+            """\
+[general]
+allow_uninitiated_workspaces = true
+use_relative_remote_paths = true
+remote_root = "remote"
+
+[[hosts]]
+host = "test-host.example.com"
+
+[push]
+exclude = ["extend", "push"]
+""",
+            None,
+            WorkspaceConfig(
+                root=Path("/root/foo/bar"),
+                configurations=[RemoteConfig(host="test-host.example.com", directory=Path("remote/foo/bar"))],
+                default_configuration=0,
+                ignores=SyncIgnores(pull=[], push=["extend", "push"], both=[".remote.toml"]),
+            ),
+        ),
     ],
 )
 def test_medium_load_config(mock_home, global_text, local_text, expected):
@@ -419,6 +493,136 @@ def test_medium_load_config(mock_home, global_text, local_text, expected):
     config.root = Path(str(config.root).replace(str(mock_home), "/root"))
 
     assert config == expected
+
+
+def test_medium_load_config_no_directory(mock_home):
+    global_config_file = mock_home / GLOBAL_CONFIG
+    global_config_file.parent.mkdir(parents=True)
+    global_config_file.write_text(
+        """
+    [general]
+allow_uninitiated_workspaces = true
+remote_root = "my-remotes"
+
+[[hosts]]
+host = "test-host.example.com"
+"""
+    )
+    workspace = mock_home / "foo" / "bar"
+
+    medium = TomlConfigurationMedium()
+    config = medium.load_config(workspace)
+    # The path is randomly generated so we need to replace it
+    config.root = Path(str(config.root).replace(str(mock_home), "/root"))
+
+    assert config == WorkspaceConfig(
+        root=Path("/root/foo/bar"),
+        configurations=[
+            RemoteConfig(
+                host="test-host.example.com",
+                directory=Path(f"my-remotes/bar_{hash_path(workspace)}"),
+                shell="sh",
+                shell_options="",
+            )
+        ],
+        default_configuration=0,
+        ignores=SyncIgnores(pull=[], push=[], both=[".remote.toml"]),
+    )
+
+
+def test_medium_load_config_picks_up_vsc_ignore_files(mock_home):
+    text = """
+[[hosts]]
+host = "test-host.example.com"
+directory = ".remotes/workspace"
+default = true
+
+[push]
+exclude = ["env", ".git"]
+
+[pull]
+include_vsc_ignore_patterns = true
+
+[both]
+exclude = ["build"]
+include_vsc_ignore_patterns = true
+"""
+    workspace = mock_home / "foo" / "bar"
+    local_config_file = workspace / WORKSPACE_CONFIG
+    local_config_file.parent.mkdir(parents=True)
+    local_config_file.write_text(text)
+
+    ignore_file = workspace / ".gitignore"
+    ignore_file.write_text(
+        """
+# comment
+# Comment
+*.pattern
+
+# comment
+
+pattern_two
+
+"""
+    )
+
+    medium = TomlConfigurationMedium()
+
+    config = medium.load_config(workspace)
+
+    # The path is randomly generated so we need to replace it
+    config.root = Path(str(config.root).replace(str(mock_home), "/root"))
+
+    assert config == WorkspaceConfig(
+        root=Path("/root/foo/bar"),
+        configurations=[RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"))],
+        default_configuration=0,
+        ignores=SyncIgnores(
+            pull=["*.pattern", "pattern_two"],
+            push=[".git", "env"],
+            both=["build", ".remote.toml", "*.pattern", "pattern_two"],
+        ),
+    )
+
+
+def test_medium_load_config_extension_overwrites_include_vsc_ignore_patterns(mock_home):
+    global_config_file = mock_home / GLOBAL_CONFIG
+    global_config_file.parent.mkdir(parents=True)
+    global_config_file.write_text(
+        """
+[[hosts]]
+host = "test-host.example.com"
+default = true
+
+[pull]
+exclude = ["env"]
+include_vsc_ignore_patterns = true
+"""
+    )
+
+    workspace = mock_home / "foo" / "bar"
+    local_config_file = workspace / WORKSPACE_CONFIG
+    local_config_file.parent.mkdir(parents=True)
+    local_config_file.write_text(
+        """
+[extends.pull]
+exclude = ["build"]
+include_vsc_ignore_patterns = false
+"""
+    )
+
+    ignore_file = workspace / ".gitignore"
+    ignore_file.write_text("*.pattern\npattern_two\n")
+
+    medium = TomlConfigurationMedium()
+
+    config = medium.load_config(workspace)
+
+    # The path is randomly generated so we need to replace it
+    config.root = Path(str(config.root).replace(str(mock_home), "/root"))
+
+    # config is loaded but no patterns are present
+    assert config.ignores.pull == ["build", "env"]
 
 
 def test_medium_load_config_fails_on_no_hosts(mock_home):
