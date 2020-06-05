@@ -57,7 +57,7 @@ def test_clear_remote_workspace(mock_run, workspace):
 
     # clear should always delete remote root regardless of what the workign dir is
     mock_run.assert_called_once_with(
-        ["ssh", "-tKq", workspace.remote.host, f"rm -rf {workspace.remote.directory}"],
+        ["ssh", "-tKq", "-o", "BatchMode=yes", workspace.remote.host, f"rm -rf {workspace.remote.directory}"],
         stderr=ANY,
         stdin=ANY,
         stdout=ANY,
@@ -75,7 +75,7 @@ def test_push(mock_run, workspace):
             "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
-            "ssh -q",
+            "ssh -q -o BatchMode=yes",
             "--force",
             "--rsync-path",
             "mkdir -p remote/dir && rsync",
@@ -98,7 +98,7 @@ def test_pull(mock_run, workspace):
             "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
-            "ssh -q",
+            "ssh -q -o BatchMode=yes",
             "--force",
             "--exclude-from",
             ANY,
@@ -121,7 +121,7 @@ def test_pull_with_subdir(mock_run, workspace):
             "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
-            "ssh -q",
+            "ssh -q -o BatchMode=yes",
             "--force",
             f"{workspace.remote.host}:{workspace.remote.directory}/some-path",
             f"{workspace.local_root}/some-path",
@@ -140,6 +140,8 @@ def test_execute(mock_run, workspace):
         [
             "ssh",
             "-tKq",
+            "-o",
+            "BatchMode=yes",
             workspace.remote.host,
             """\
 if [ -f remote/dir/.remoteenv ]; then
@@ -169,7 +171,7 @@ def test_execute_and_sync(mock_run, workspace):
                     "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
-                    "ssh -q",
+                    "ssh -q -o BatchMode=yes",
                     "--force",
                     "--rsync-path",
                     "mkdir -p remote/dir && rsync",
@@ -183,6 +185,8 @@ def test_execute_and_sync(mock_run, workspace):
                 [
                     "ssh",
                     "-tKq",
+                    "-o",
+                    "BatchMode=yes",
                     workspace.remote.host,
                     """\
 if [ -f remote/dir/.remoteenv ]; then
@@ -202,7 +206,7 @@ echo 'Hello World!'
                     "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
-                    "ssh -q",
+                    "ssh -q -o BatchMode=yes",
                     "--force",
                     "--exclude-from",
                     ANY,
