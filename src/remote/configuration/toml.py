@@ -73,7 +73,7 @@ from pydantic import BaseModel, Field, ValidationError, validator
 
 from remote.exceptions import ConfigurationError
 
-from . import ConfigurationMedium, RemoteConfig, SyncIgnores, WorkspaceConfig
+from . import ConfigurationMedium, RemoteConfig, SyncIgnores, SyncIncludes, WorkspaceConfig
 from .shared import DEFAULT_REMOTE_ROOT, HOST_REGEX, hash_path
 
 WORKSPACE_CONFIG = ".remote.toml"
@@ -98,10 +98,12 @@ class ConnectionConfig(ConfigModel):
 
 class SyncRulesConfig(ConfigModel):
     exclude: List[str] = Field(default_factory=list)
+    include: List[str] = Field(default_factory=list)
     include_vsc_ignore_patterns: Optional[bool] = None
 
     def extend(self, other: "SyncRulesConfig") -> None:
         self.exclude.extend(other.exclude)
+        self.include.extend(other.include)
         if other.include_vsc_ignore_patterns is not None:
             self.include_vsc_ignore_patterns = other.include_vsc_ignore_patterns
 
@@ -301,11 +303,18 @@ class TomlConfigurationMedium(ConfigurationMedium):
             both=_get_exclude(merged_config.both, workspace_root) + [WORKSPACE_CONFIG],
         )
 
+        includes = SyncIncludes(
+            pull=merged_config.pull.include if merged_config.pull and merged_config.pull.include else [],
+            push=merged_config.push.include if merged_config.push and merged_config.push.include else [],
+            both=merged_config.both.include if merged_config.both and merged_config.both.include else [],
+        )
+
         return WorkspaceConfig(
             root=workspace_root,
             configurations=configurations,
             default_configuration=configuration_index,
             ignores=ignores,
+            includes=includes,
         )
 
     def save_config(self, config: WorkspaceConfig) -> None:

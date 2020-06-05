@@ -64,6 +64,40 @@ class SyncIgnores:
 
 
 @dataclass
+class SyncIncludes:
+    """Patterns used to include files when syncing with remote location"""
+
+    # patterns to include while pulling from remote
+    pull: List[str]
+    # patterns to include while pushing from local
+    push: List[str]
+    # patterns to include while transferring files in both directions
+    both: List[str]
+
+    def compile_push_includes(self):
+        result = set()
+        result.update(self.push)
+        result.update(self.both)
+        return sorted(result)
+
+    def compile_pull_includes(self):
+        result = set()
+        result.update(self.pull)
+        result.update(self.both)
+        return sorted(result)
+
+    def add_includes(self, ignores: List[str]):
+        new_includes = set()
+        new_includes.update(ignores)
+        new_includes.update(self.both)
+        self.both = sorted(new_includes)
+
+    @classmethod
+    def new(cls) -> "SyncIncludes":
+        return cls([], [], [])
+
+
+@dataclass
 class WorkspaceConfig:
     """Complete remote workspace config"""
 
@@ -75,10 +109,18 @@ class WorkspaceConfig:
     default_configuration: int
     # patterns to ignore while syncing the workspace
     ignores: SyncIgnores
+    # patterns to include while syncing the workspace
+    includes: SyncIncludes
 
     @classmethod
     def empty(cls, root: Path) -> "WorkspaceConfig":
-        return cls(root=root, configurations=[], default_configuration=0, ignores=SyncIgnores.new())
+        return cls(
+            root=root,
+            configurations=[],
+            default_configuration=0,
+            ignores=SyncIgnores.new(),
+            includes=SyncIncludes.new(),
+        )
 
     def add_remote_host(
         self, host: str, directory: Path, shell: Optional[str] = None, shell_options: Optional[str] = None

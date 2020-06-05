@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from remote.configuration import RemoteConfig, SyncIgnores, WorkspaceConfig
+from remote.configuration import RemoteConfig, SyncIgnores, SyncIncludes, WorkspaceConfig
 from remote.configuration.shared import hash_path
 from remote.configuration.toml import (
     DEFAULT_REMOTE_ROOT,
@@ -131,9 +131,9 @@ def test_save_global_config(mock_home):
     save_global_config(
         GlobalConfig(
             hosts=[ConnectionConfig(host="test-host.example.com", directory=None, default=True)],
-            push=SyncRulesConfig(exclude=["env", ".git"]),
-            pull=SyncRulesConfig(exclude=["src/generated"]),
-            both=SyncRulesConfig(exclude=["build"]),
+            push=SyncRulesConfig(exclude=["env", ".git"], include=["env"]),
+            pull=SyncRulesConfig(exclude=["src/generated"], include=[".gradle"]),
+            both=SyncRulesConfig(exclude=["build", ".cache"], include=[".cache"]),
             general=GeneralConfig(allow_uninitiated_workspaces=True, remote_root="my-remotes"),
         )
     )
@@ -147,12 +147,15 @@ default = true
 
 [push]
 exclude = [ "env", ".git",]
+include = [ "env",]
 
 [pull]
 exclude = [ "src/generated",]
+include = [ ".gradle",]
 
 [both]
-exclude = [ "build",]
+exclude = [ "build", ".cache",]
+include = [ ".cache",]
 
 [general]
 allow_uninitiated_workspaces = true
@@ -177,12 +180,14 @@ default = true
 
 [push]
 exclude = ["env", ".git"]
+include = ["env"]
 
 [pull]
 exclude = ["src/generated"]
 
 [both]
-exclude = ["build"]
+exclude = ["build", "configs/global"]
+include = ["configs/global"]
 """
     )
 
@@ -192,9 +197,9 @@ exclude = ["build"]
             ConnectionConfig(host="test-host.example.com", directory=".remotes/workspace", default=False),
             ConnectionConfig(host="other-host.example.com", directory=".remotes/other-workspace", default=True),
         ],
-        push=SyncRulesConfig(exclude=["env", ".git"]),
+        push=SyncRulesConfig(exclude=["env", ".git"], include=["env"]),
         pull=SyncRulesConfig(exclude=["src/generated"]),
-        both=SyncRulesConfig(exclude=["build"]),
+        both=SyncRulesConfig(exclude=["build", "configs/global"], include=["configs/global"]),
         extends=None,
     )
 
@@ -209,6 +214,7 @@ directory = ".remotes/workspace"
 
 [extends.push]
 exclude = ["env", ".git"]
+include = ["env"]
 
 [both]
 exclude = ["build"]
@@ -223,7 +229,7 @@ exclude = ["build"]
         both=SyncRulesConfig(exclude=["build"]),
         extends=WorkCycleConfig(
             hosts=[ConnectionConfig(host="test-host.example.com", directory=".remotes/workspace", default=False)],
-            push=SyncRulesConfig(exclude=["env", ".git"]),
+            push=SyncRulesConfig(exclude=["env", ".git"], include=["env"]),
             pull=None,
             both=None,
         ),
@@ -297,6 +303,7 @@ default = true
 
 [push]
 exclude = ["env", ".git"]
+include = ["env"]
 
 [pull]
 exclude = ["src/generated"]
@@ -313,6 +320,7 @@ exclude = ["build"]
                 ],
                 default_configuration=1,
                 ignores=SyncIgnores(pull=["src/generated"], push=[".git", "env"], both=["build", ".remote.toml"]),
+                includes=SyncIncludes(pull=[], push=["env"], both=[]),
             ),
         ),
         # Settings from local config overwrite global ones
@@ -327,6 +335,7 @@ default = true
 
 [push]
 exclude = ["env", ".git"]
+include = ["env"]
 
 [pull]
 exclude = ["src/generated"]
@@ -341,12 +350,14 @@ directory = ".remotes/workspace"
 
 [both]
 exclude = []
+include =["env"]
 """,
             WorkspaceConfig(
                 root=Path("/root/foo/bar"),
                 configurations=[RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"))],
                 default_configuration=0,
                 ignores=SyncIgnores(pull=["src/generated"], push=[".git", "env"], both=[".remote.toml"]),
+                includes=SyncIncludes(pull=[], push=["env"], both=["env"]),
             ),
         ),
         # Settings from local config extend and overwrite global ones. Defaults collision is resolved
@@ -361,6 +372,7 @@ default = true
 
 [push]
 exclude = ["env", ".git"]
+include = ["env"]
 
 [pull]
 exclude = ["src/generated"]
@@ -376,6 +388,7 @@ default = true
 
 [extends.push]
 exclude = ["extend", "push"]
+include = ["push"]
 
 [both]
 exclude = []
@@ -390,6 +403,7 @@ exclude = []
                 ignores=SyncIgnores(
                     pull=["src/generated"], push=[".git", "env", "extend", "push"], both=[".remote.toml"]
                 ),
+                includes=SyncIncludes(pull=[], push=["env", "push"], both=[]),
             ),
         ),
         # No global config
@@ -403,12 +417,14 @@ default = true
 
 [push]
 exclude = ["extend", "push"]
+include = ["env"]
 """,
             WorkspaceConfig(
                 root=Path("/root/foo/bar"),
                 configurations=[RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"))],
                 default_configuration=0,
                 ignores=SyncIgnores(pull=[], push=["extend", "push"], both=[".remote.toml"]),
+                includes=SyncIncludes(pull=[], push=["env"], both=[]),
             ),
         ),
         # No global config at all, but there are some extends in local
@@ -422,6 +438,7 @@ default = true
 
 [extends.push]
 exclude = ["extend", "push"]
+include =["env"]
 
 [both]
 exclude = []
@@ -431,6 +448,7 @@ exclude = []
                 configurations=[RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"))],
                 default_configuration=0,
                 ignores=SyncIgnores(pull=[], push=["extend", "push"], both=[".remote.toml"]),
+                includes=SyncIncludes(pull=[], push=["env"], both=[]),
             ),
         ),
         # No global config and no default set (first is default implicitely)
@@ -443,12 +461,14 @@ directory = ".remotes/workspace"
 
 [push]
 exclude = ["extend", "push"]
+include = ["env"]
 """,
             WorkspaceConfig(
                 root=Path("/root/foo/bar"),
                 configurations=[RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"))],
                 default_configuration=0,
                 ignores=SyncIgnores(pull=[], push=["extend", "push"], both=[".remote.toml"]),
+                includes=SyncIncludes(pull=[], push=["env"], both=[]),
             ),
         ),
         # No local config, global config has no directory and supports relative remote paths
@@ -464,6 +484,7 @@ host = "test-host.example.com"
 
 [push]
 exclude = ["extend", "push"]
+include = [".git"]
 """,
             None,
             WorkspaceConfig(
@@ -471,6 +492,7 @@ exclude = ["extend", "push"]
                 configurations=[RemoteConfig(host="test-host.example.com", directory=Path("remote/foo/bar"))],
                 default_configuration=0,
                 ignores=SyncIgnores(pull=[], push=["extend", "push"], both=[".remote.toml"]),
+                includes=SyncIncludes(pull=[], push=[".git"], both=[]),
             ),
         ),
     ],
@@ -527,6 +549,7 @@ host = "test-host.example.com"
         ],
         default_configuration=0,
         ignores=SyncIgnores(pull=[], push=[], both=[".remote.toml"]),
+        includes=SyncIncludes(pull=[], push=[], both=[]),
     )
 
 
@@ -582,6 +605,7 @@ pattern_two
             push=[".git", "env"],
             both=["build", ".remote.toml", "*.pattern", "pattern_two"],
         ),
+        includes=SyncIncludes(pull=[], push=[], both=[]),
     )
 
 
@@ -691,6 +715,7 @@ def test_medium_is_workspace_root(mock_home):
                 ],
                 default_configuration=1,
                 ignores=SyncIgnores(pull=["src/generated"], push=[".git", "env"], both=["build", ".remote.toml"]),
+                includes=SyncIncludes(pull=[], push=[], both=[]),
             ),
             """\
 [[hosts]]
@@ -704,12 +729,15 @@ default = true
 
 [push]
 exclude = [ ".git", "env",]
+include = []
 
 [pull]
 exclude = [ "src/generated",]
+include = []
 
 [both]
 exclude = [ ".remote.toml", "build",]
+include = []
 """,
         ),
     ],

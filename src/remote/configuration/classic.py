@@ -15,7 +15,7 @@ from typing import Dict, List, Tuple
 
 from remote.exceptions import ConfigurationError
 
-from . import ConfigurationMedium, RemoteConfig, SyncIgnores, WorkspaceConfig
+from . import ConfigurationMedium, RemoteConfig, SyncIgnores, SyncIncludes, WorkspaceConfig
 from .shared import DEFAULT_REMOTE_ROOT, hash_path
 
 CONFIG_FILE_NAME = ".remote"
@@ -199,7 +199,7 @@ def save_index(config_file: Path, index: int):
 
 
 class ClassicConfigurationMedium(ConfigurationMedium):
-    """A medium class that knows hot to load and save the 'classical' workspace configuration.
+    """A medium class that knows how to load and save the 'classical' workspace configuration.
 
     This configuration may have three meaningful files:
     .remote (required) - information about the connection options
@@ -221,6 +221,7 @@ class ClassicConfigurationMedium(ConfigurationMedium):
             configurations=configurations,
             default_configuration=configuration_index,
             ignores=ignores,
+            includes=SyncIncludes.new(),
         )
 
     def save_config(self, config: WorkspaceConfig) -> None:
