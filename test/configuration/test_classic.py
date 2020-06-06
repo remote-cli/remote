@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from remote.configuration import RemoteConfig, SyncIgnores
+from remote.configuration import RemoteConfig, SyncRules
 from remote.configuration.classic import (
     CONFIG_FILE_NAME,
     IGNORE_FILE_NAME,
@@ -180,7 +180,7 @@ def test_medium_load_minimal_config(tmp_path):
         host="test-host.example.com", directory=Path("remote/dir"), shell="sh", shell_options=""
     )
     # Ignore is always pre-populated even if it's empy in FS
-    assert config.ignores == SyncIgnores(pull=[], push=[], both=[CONFIG_FILE_NAME, IGNORE_FILE_NAME, INDEX_FILE_NAME])
+    assert config.ignores == SyncRules(pull=[], push=[], both=[CONFIG_FILE_NAME, IGNORE_FILE_NAME, INDEX_FILE_NAME])
 
 
 def test_medium_load_old_fashioned_ignore_config(tmp_path):
@@ -196,7 +196,7 @@ def test_medium_load_old_fashioned_ignore_config(tmp_path):
         host="test-host.example.com", directory=Path("remote/dir"), shell="sh", shell_options=""
     )
     # Ignore is always pre-populated even if it's empy in FS
-    assert config.ignores == SyncIgnores(
+    assert config.ignores == SyncRules(
         pull=[], push=[], both=["build", ".git", "*.pyc", CONFIG_FILE_NAME, IGNORE_FILE_NAME, INDEX_FILE_NAME]
     )
 
@@ -243,7 +243,7 @@ build
         RemoteConfig(host="other-host.example.com", directory=Path("other/dir"), shell="bash", shell_options="options"),
         RemoteConfig(host="third-host.example.com", directory=Path(".remote/dir"), shell="zsh", shell_options=""),
     ]
-    assert config.ignores == SyncIgnores(
+    assert config.ignores == SyncRules(
         pull=["src/generated"],
         push=[".git", "*.pyc", "__pycache__"],
         both=["build", CONFIG_FILE_NAME, IGNORE_FILE_NAME, INDEX_FILE_NAME],

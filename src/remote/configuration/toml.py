@@ -73,7 +73,7 @@ from pydantic import BaseModel, Field, ValidationError, validator
 
 from remote.exceptions import ConfigurationError
 
-from . import ConfigurationMedium, RemoteConfig, SyncIgnores, SyncIncludes, WorkspaceConfig
+from . import ConfigurationMedium, RemoteConfig, SyncRules, WorkspaceConfig
 from .shared import DEFAULT_REMOTE_ROOT, HOST_REGEX, hash_path
 
 WORKSPACE_CONFIG = ".remote.toml"
@@ -297,13 +297,13 @@ class TomlConfigurationMedium(ConfigurationMedium):
                     directory=connection.directory or self._generate_remote_directory_from_path(workspace_root),
                 )
             )
-        ignores = SyncIgnores(
+        ignores = SyncRules(
             pull=_get_exclude(merged_config.pull, workspace_root),
             push=_get_exclude(merged_config.push, workspace_root),
             both=_get_exclude(merged_config.both, workspace_root) + [WORKSPACE_CONFIG],
         )
 
-        includes = SyncIncludes(
+        includes = SyncRules(
             pull=merged_config.pull.include if merged_config.pull and merged_config.pull.include else [],
             push=merged_config.push.include if merged_config.push and merged_config.push.include else [],
             both=merged_config.both.include if merged_config.both and merged_config.both.include else [],
@@ -322,7 +322,7 @@ class TomlConfigurationMedium(ConfigurationMedium):
 
         For now, this method don't have any smart merging of extension arguments.
         """
-        config.ignores.add_ignores([WORKSPACE_CONFIG])
+        config.ignores.add([WORKSPACE_CONFIG])
 
         local_config = LocalConfig()
         local_config.hosts = []

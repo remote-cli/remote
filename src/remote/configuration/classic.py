@@ -15,7 +15,7 @@ from typing import Dict, List, Tuple
 
 from remote.exceptions import ConfigurationError
 
-from . import ConfigurationMedium, RemoteConfig, SyncIgnores, SyncIncludes, WorkspaceConfig
+from . import ConfigurationMedium, RemoteConfig, SyncRules, WorkspaceConfig
 from .shared import DEFAULT_REMOTE_ROOT, hash_path
 
 CONFIG_FILE_NAME = ".remote"
@@ -126,10 +126,10 @@ def _postprocess(ignores):
         raise ConfigurationError(
             f"{IGNORE_FILE_NAME} file has unexpected sections: {', '.join(ignores.keys())}. Please remove them"
         )
-    return SyncIgnores(pull=pull, push=push, both=both)
+    return SyncRules(pull=pull, push=push, both=both)
 
 
-def load_ignores(workspace_root: Path) -> SyncIgnores:
+def load_ignores(workspace_root: Path) -> SyncRules:
     ignores: Dict[str, List[str]] = defaultdict(list)
     ignores["both"].extend(BASE_IGNORES)
 
@@ -173,7 +173,7 @@ def save_general_config(config_file: Path, configurations: List[RemoteConfig]):
             f.write("\n")
 
 
-def save_ignores(config_file: Path, ignores: SyncIgnores):
+def save_ignores(config_file: Path, ignores: SyncRules):
     ignores.both.extend(BASE_IGNORES)
     ignores.trim()
 
@@ -221,7 +221,7 @@ class ClassicConfigurationMedium(ConfigurationMedium):
             configurations=configurations,
             default_configuration=configuration_index,
             ignores=ignores,
-            includes=SyncIncludes.new(),
+            includes=SyncRules.new(),
         )
 
     def save_config(self, config: WorkspaceConfig) -> None:

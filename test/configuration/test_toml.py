@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from remote.configuration import RemoteConfig, SyncIgnores, SyncIncludes, WorkspaceConfig
+from remote.configuration import RemoteConfig, SyncRules, WorkspaceConfig
 from remote.configuration.shared import hash_path
 from remote.configuration.toml import (
     DEFAULT_REMOTE_ROOT,
@@ -319,8 +319,8 @@ exclude = ["build"]
                     RemoteConfig(host="other-host.example.com", directory=Path("my-remotes/foo/bar")),
                 ],
                 default_configuration=1,
-                ignores=SyncIgnores(pull=["src/generated"], push=[".git", "env"], both=["build", ".remote.toml"]),
-                includes=SyncIncludes(pull=[], push=["env"], both=[]),
+                ignores=SyncRules(pull=["src/generated"], push=[".git", "env"], both=["build", ".remote.toml"]),
+                includes=SyncRules(pull=[], push=["env"], both=[]),
             ),
         ),
         # Settings from local config overwrite global ones
@@ -356,8 +356,8 @@ include =["env"]
                 root=Path("/root/foo/bar"),
                 configurations=[RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"))],
                 default_configuration=0,
-                ignores=SyncIgnores(pull=["src/generated"], push=[".git", "env"], both=[".remote.toml"]),
-                includes=SyncIncludes(pull=[], push=["env"], both=["env"]),
+                ignores=SyncRules(pull=["src/generated"], push=[".git", "env"], both=[".remote.toml"]),
+                includes=SyncRules(pull=[], push=["env"], both=["env"]),
             ),
         ),
         # Settings from local config extend and overwrite global ones. Defaults collision is resolved
@@ -400,10 +400,10 @@ exclude = []
                     RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace")),
                 ],
                 default_configuration=1,
-                ignores=SyncIgnores(
+                ignores=SyncRules(
                     pull=["src/generated"], push=[".git", "env", "extend", "push"], both=[".remote.toml"]
                 ),
-                includes=SyncIncludes(pull=[], push=["env", "push"], both=[]),
+                includes=SyncRules(pull=[], push=["env", "push"], both=[]),
             ),
         ),
         # No global config
@@ -423,8 +423,8 @@ include = ["env"]
                 root=Path("/root/foo/bar"),
                 configurations=[RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"))],
                 default_configuration=0,
-                ignores=SyncIgnores(pull=[], push=["extend", "push"], both=[".remote.toml"]),
-                includes=SyncIncludes(pull=[], push=["env"], both=[]),
+                ignores=SyncRules(pull=[], push=["extend", "push"], both=[".remote.toml"]),
+                includes=SyncRules(pull=[], push=["env"], both=[]),
             ),
         ),
         # No global config at all, but there are some extends in local
@@ -447,8 +447,8 @@ exclude = []
                 root=Path("/root/foo/bar"),
                 configurations=[RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"))],
                 default_configuration=0,
-                ignores=SyncIgnores(pull=[], push=["extend", "push"], both=[".remote.toml"]),
-                includes=SyncIncludes(pull=[], push=["env"], both=[]),
+                ignores=SyncRules(pull=[], push=["extend", "push"], both=[".remote.toml"]),
+                includes=SyncRules(pull=[], push=["env"], both=[]),
             ),
         ),
         # No global config and no default set (first is default implicitely)
@@ -467,8 +467,8 @@ include = ["env"]
                 root=Path("/root/foo/bar"),
                 configurations=[RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"))],
                 default_configuration=0,
-                ignores=SyncIgnores(pull=[], push=["extend", "push"], both=[".remote.toml"]),
-                includes=SyncIncludes(pull=[], push=["env"], both=[]),
+                ignores=SyncRules(pull=[], push=["extend", "push"], both=[".remote.toml"]),
+                includes=SyncRules(pull=[], push=["env"], both=[]),
             ),
         ),
         # No local config, global config has no directory and supports relative remote paths
@@ -491,8 +491,8 @@ include = [".git"]
                 root=Path("/root/foo/bar"),
                 configurations=[RemoteConfig(host="test-host.example.com", directory=Path("remote/foo/bar"))],
                 default_configuration=0,
-                ignores=SyncIgnores(pull=[], push=["extend", "push"], both=[".remote.toml"]),
-                includes=SyncIncludes(pull=[], push=[".git"], both=[]),
+                ignores=SyncRules(pull=[], push=["extend", "push"], both=[".remote.toml"]),
+                includes=SyncRules(pull=[], push=[".git"], both=[]),
             ),
         ),
     ],
@@ -548,8 +548,8 @@ host = "test-host.example.com"
             )
         ],
         default_configuration=0,
-        ignores=SyncIgnores(pull=[], push=[], both=[".remote.toml"]),
-        includes=SyncIncludes(pull=[], push=[], both=[]),
+        ignores=SyncRules(pull=[], push=[], both=[".remote.toml"]),
+        includes=SyncRules(pull=[], push=[], both=[]),
     )
 
 
@@ -600,12 +600,12 @@ pattern_two
         root=Path("/root/foo/bar"),
         configurations=[RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"))],
         default_configuration=0,
-        ignores=SyncIgnores(
+        ignores=SyncRules(
             pull=["*.pattern", "pattern_two"],
             push=[".git", "env"],
             both=["build", ".remote.toml", "*.pattern", "pattern_two"],
         ),
-        includes=SyncIncludes(pull=[], push=[], both=[]),
+        includes=SyncRules(pull=[], push=[], both=[]),
     )
 
 
@@ -714,8 +714,8 @@ def test_medium_is_workspace_root(mock_home):
                     RemoteConfig(host="other-host.example.com", directory=Path(".remotes/other-workspace")),
                 ],
                 default_configuration=1,
-                ignores=SyncIgnores(pull=["src/generated"], push=[".git", "env"], both=["build", ".remote.toml"]),
-                includes=SyncIncludes(pull=[], push=[], both=[]),
+                ignores=SyncRules(pull=["src/generated"], push=[".git", "env"], both=["build", ".remote.toml"]),
+                includes=SyncRules(pull=[], push=[], both=[]),
             ),
             """\
 [[hosts]]

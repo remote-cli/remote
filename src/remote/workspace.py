@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Union
 
-from .configuration import RemoteConfig, SyncIgnores, SyncIncludes, WorkspaceConfig
+from .configuration import RemoteConfig, SyncRules, WorkspaceConfig
 from .configuration.discovery import load_cwd_workspace_config
 from .util import prepare_shell_command, rsync, ssh
 
@@ -22,9 +22,9 @@ class SyncedWorkspace:
     # remote directory to use as working directory, relative to users home directory
     remote_working_dir: Path
     # sync ignore file patterns
-    ignores: SyncIgnores
+    ignores: SyncRules
     # sync include file patterns
-    includes: SyncIncludes
+    includes: SyncRules
 
     @classmethod
     def from_config(
@@ -130,8 +130,8 @@ cd {self.remote_working_dir}
         """
         src = f"{self.local_root}/"
         dst = f"{self.remote.host}:{self.remote.directory}"
-        ignores = self.ignores.compile_push_ignores()
-        includes = self.includes.compile_push_includes()
+        ignores = self.ignores.compile_push()
+        includes = self.includes.compile_push()
         # If remote directory structure is deep and it was deleted, we need an rsync-path to recreate it before copying
         extra_args = ["--rsync-path", f"mkdir -p {self.remote.directory} && rsync"]
         rsync(
@@ -163,8 +163,8 @@ cd {self.remote_working_dir}
 
         src = f"{self.remote.host}:{self.remote.directory}/"
         dst = str(self.local_root)
-        ignores = self.ignores.compile_pull_ignores()
-        includes = self.includes.compile_pull_includes()
+        ignores = self.ignores.compile_pull()
+        includes = self.includes.compile_pull()
         rsync(src, dst, info=info, verbose=verbose, includes=includes, dry_run=dry_run, excludes=ignores)
 
     def clear_remote(self):
