@@ -1,7 +1,8 @@
 1.4.1
 -----
 * Fail ssh and rsync when password is requested by adding -o BatchMode=yes
-* add -K to rsync ssh command
+* add -K to rsync ssh command to make it homogenous with ssh
+* Support rsync's --include-from to make exclude overrides possible
 
 1.4.0
 -----
