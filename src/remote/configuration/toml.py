@@ -304,9 +304,9 @@ class TomlConfigurationMedium(ConfigurationMedium):
         )
 
         includes = SyncRules(
-            pull=merged_config.pull.include if merged_config.pull and merged_config.pull.include else [],
-            push=merged_config.push.include if merged_config.push and merged_config.push.include else [],
-            both=merged_config.both.include if merged_config.both and merged_config.both.include else [],
+            pull=merged_config.pull.include if merged_config.pull else [],
+            push=merged_config.push.include if merged_config.push else [],
+            both=merged_config.both.include if merged_config.both else [],
         )
 
         return WorkspaceConfig(

@@ -20,13 +20,13 @@ class RemoteConfig:
 
 @dataclass
 class SyncRules:
-    """Patterns used to either ignore or exclude files when syncing with remote location"""
+    """Patterns used by rsync to forcefully exclude or include files while syncyng with remote location"""
 
-    # patterns to either ignore or exclude while pulling from remote
+    # patterns used by rsync to forcefully exclude or include files while pulling from remote
     pull: List[str]
-    # patterns to either ignore or exclude while pushing from local
+    # patterns used by rsync to forcefully exclude or include files while pushing from local
     push: List[str]
-    # patterns to either ignore or exclude while transferring files in both directions
+    # patterns used by rsync to forcefully exclude or include while transferring files in both directions
     both: List[str]
 
     def __post_init__(self):
