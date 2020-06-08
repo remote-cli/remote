@@ -67,7 +67,7 @@ def rsync(
     """
 
     logger.info("Sync files from %s to %s", src, dst)
-    args = ["rsync", "-arlpmchz", "--copy-unsafe-links", "-e", "ssh -q", "--force"]
+    args = ["rsync", "-arlpmchz", "--copy-unsafe-links", "-e", "ssh -q -o BatchMode=yes", "--force"]
     if info:
         args.append("-i")
     if verbose:
@@ -127,7 +127,7 @@ def ssh(host: str, command: str, dry_run: bool = False, raise_on_error: bool = T
 
     :returns: exit code of remote command or 255 if connection didn't go through
     """
-    subprocess_command = ["ssh", "-tKq", host, command]
+    subprocess_command = ["ssh", "-tKq", "-o", "BatchMode=yes", host, command]
     logger.info("Executing:\n%s %s %s <<EOS\n%sEOS", *subprocess_command)
     if dry_run:
         return 0

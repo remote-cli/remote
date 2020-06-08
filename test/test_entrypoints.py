@@ -106,7 +106,9 @@ def test_remote_init(mock_run, tmp_path):
     assert "Created remote directory at test-host.example.com:.remotes/myproject_" in result.output
     assert "Remote is configured and ready to use" in result.output
 
-    mock_run.assert_called_once_with(["ssh", "-tKq", "test-host.example.com", ANY], stdin=ANY, stdout=ANY, stderr=ANY)
+    mock_run.assert_called_once_with(
+        ["ssh", "-tKq", "-o", "BatchMode=yes", "test-host.example.com", ANY], stdin=ANY, stdout=ANY, stderr=ANY
+    )
 
     assert (subdir / CONFIG_FILE_NAME).exists()
     assert (subdir / CONFIG_FILE_NAME).read_text().startswith("test-host.example.com:.remotes/myproject_")
@@ -144,7 +146,7 @@ Remote is configured and ready to use
     )
 
     mock_run.assert_called_once_with(
-        ["ssh", "-tKq", "test-host.example.com", "mkdir -p .path/test.dir/_test-dir"],
+        ["ssh", "-tKq", "-o", "BatchMode=yes", "test-host.example.com", "mkdir -p .path/test.dir/_test-dir"],
         stdin=ANY,
         stdout=ANY,
         stderr=ANY,
@@ -259,7 +261,7 @@ def test_remote_add_adds_host(mock_run, tmp_workspace):
     assert (tmp_workspace / CONFIG_FILE_NAME).read_text() == f"{TEST_CONFIG}\nhost:directory\n"
 
     mock_run.assert_called_once_with(
-        ["ssh", "-tKq", "host", "mkdir -p directory"], stdin=ANY, stdout=ANY, stderr=ANY,
+        ["ssh", "-tKq", "-o", "BatchMode=yes", "host", "mkdir -p directory"], stdin=ANY, stdout=ANY, stderr=ANY,
     )
 
 
@@ -368,7 +370,7 @@ def test_remote(mock_run, tmp_workspace):
                     "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
-                    "ssh -q",
+                    "ssh -q -o BatchMode=yes",
                     "--force",
                     "--rsync-path",
                     "mkdir -p .remotes/myproject && rsync",
@@ -384,6 +386,8 @@ def test_remote(mock_run, tmp_workspace):
                 [
                     "ssh",
                     "-tKq",
+                    "-o",
+                    "BatchMode=yes",
                     TEST_HOST,
                     """if [ -f .remotes/myproject/.remoteenv ]; then
   source .remotes/myproject/.remoteenv 2>/dev/null 1>/dev/null
@@ -402,7 +406,7 @@ echo test >> .file
                     "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
-                    "ssh -q",
+                    "ssh -q -o BatchMode=yes",
                     "--force",
                     "--exclude-from",
                     ANY,
@@ -434,7 +438,7 @@ def test_remote_execution_fail(mock_run, tmp_workspace):
                     "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
-                    "ssh -q",
+                    "ssh -q -o BatchMode=yes",
                     "--force",
                     "--rsync-path",
                     "mkdir -p .remotes/myproject && rsync",
@@ -450,6 +454,8 @@ def test_remote_execution_fail(mock_run, tmp_workspace):
                 [
                     "ssh",
                     "-tKq",
+                    "-o",
+                    "BatchMode=yes",
                     TEST_HOST,
                     """if [ -f .remotes/myproject/.remoteenv ]; then
   source .remotes/myproject/.remoteenv 2>/dev/null 1>/dev/null
@@ -468,7 +474,7 @@ echo 'test >> .file'
                     "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
-                    "ssh -q",
+                    "ssh -q -o BatchMode=yes",
                     "--force",
                     "--exclude-from",
                     ANY,
@@ -498,7 +504,7 @@ def test_remote_sync_fail(mock_run, tmp_workspace):
             "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
-            "ssh -q",
+            "ssh -q -o BatchMode=yes",
             "--force",
             "--rsync-path",
             "mkdir -p .remotes/myproject && rsync",
@@ -525,6 +531,8 @@ def test_remote_quick(mock_run, tmp_workspace):
         [
             "ssh",
             "-tKq",
+            "-o",
+            "BatchMode=yes",
             TEST_HOST,
             """if [ -f .remotes/myproject/.remoteenv ]; then
   source .remotes/myproject/.remoteenv 2>/dev/null 1>/dev/null
@@ -552,6 +560,8 @@ def test_remote_quick_execution_fail(mock_run, tmp_workspace):
         [
             "ssh",
             "-tKq",
+            "-o",
+            "BatchMode=yes",
             TEST_HOST,
             """if [ -f .remotes/myproject/.remoteenv ]; then
   source .remotes/myproject/.remoteenv 2>/dev/null 1>/dev/null
@@ -581,7 +591,7 @@ def test_remote_push(mock_run, tmp_workspace):
             "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
-            "ssh -q",
+            "ssh -q -o BatchMode=yes",
             "--force",
             "-i",
             "--rsync-path",
@@ -616,7 +626,7 @@ def test_remote_push_mass(mock_run, tmp_workspace):
                     "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
-                    "ssh -q",
+                    "ssh -q -o BatchMode=yes",
                     "--force",
                     "-i",
                     "--rsync-path",
@@ -635,7 +645,7 @@ def test_remote_push_mass(mock_run, tmp_workspace):
                     "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
-                    "ssh -q",
+                    "ssh -q -o BatchMode=yes",
                     "--force",
                     "-i",
                     "--rsync-path",
@@ -667,7 +677,7 @@ def test_remote_pull(mock_run, tmp_workspace):
             "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
-            "ssh -q",
+            "ssh -q -o BatchMode=yes",
             "--force",
             "-i",
             "--exclude-from",
@@ -698,7 +708,7 @@ def test_remote_pull_subdirs(mock_run, tmp_workspace):
                     "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
-                    "ssh -q",
+                    "ssh -q -o BatchMode=yes",
                     "--force",
                     "-i",
                     f"{TEST_HOST}:{TEST_DIR}/build",
@@ -713,7 +723,7 @@ def test_remote_pull_subdirs(mock_run, tmp_workspace):
                     "-arlpmchz",
                     "--copy-unsafe-links",
                     "-e",
-                    "ssh -q",
+                    "ssh -q -o BatchMode=yes",
                     "--force",
                     "-i",
                     f"{TEST_HOST}:{TEST_DIR}/dist",
@@ -736,5 +746,5 @@ def test_remote_delete(mock_run, tmp_workspace):
 
     assert result.exit_code == 0
     mock_run.assert_called_once_with(
-        ["ssh", "-tKq", TEST_HOST, f"rm -rf {TEST_DIR}"], stdin=ANY, stdout=ANY, stderr=ANY,
+        ["ssh", "-tKq", "-o", "BatchMode=yes", TEST_HOST, f"rm -rf {TEST_DIR}"], stdin=ANY, stdout=ANY, stderr=ANY,
     )

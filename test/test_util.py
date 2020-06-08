@@ -77,7 +77,7 @@ def test_rsync_respects_all_options(mock_run):
             "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
-            "ssh -q",
+            "ssh -q -o BatchMode=yes",
             "--force",
             "-i",
             "-v",
@@ -137,7 +137,7 @@ def test_ssh(mock_run):
 
     assert code == 0
     mock_run.assert_called_once_with(
-        ["ssh", "-tKq", "my-host.example.com", "exit 0"], stdout=ANY, stderr=ANY, stdin=ANY
+        ["ssh", "-tKq", "-o", "BatchMode=yes", "my-host.example.com", "exit 0"], stdout=ANY, stderr=ANY, stdin=ANY
     )
 
 
@@ -150,7 +150,10 @@ def test_ssh_raises_exception(mock_run, returncode, error):
         ssh("my-host.example.com", f"exit {returncode}")
 
     mock_run.assert_called_once_with(
-        ["ssh", "-tKq", "my-host.example.com", f"exit {returncode}"], stdout=ANY, stderr=ANY, stdin=ANY
+        ["ssh", "-tKq", "-o", "BatchMode=yes", "my-host.example.com", f"exit {returncode}"],
+        stdout=ANY,
+        stderr=ANY,
+        stdin=ANY,
     )
 
 
@@ -164,7 +167,10 @@ def test_ssh_returns_error_code_if_configured(mock_run, returncode):
 
     assert code == returncode
     mock_run.assert_called_once_with(
-        ["ssh", "-tKq", "my-host.example.com", f"exit {returncode}"], stdout=ANY, stderr=ANY, stdin=ANY
+        ["ssh", "-tKq", "-o", "BatchMode=yes", "my-host.example.com", f"exit {returncode}"],
+        stdout=ANY,
+        stderr=ANY,
+        stdin=ANY,
     )
 
 
