@@ -1,3 +1,7 @@
+1.4.2
+-----
+* add -K to rsync ssh command
+
 1.4.1
 -----
 * Fail ssh and rsync when password is requested by adding -o BatchMode=yes
