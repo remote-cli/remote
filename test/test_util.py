@@ -77,7 +77,7 @@ def test_rsync_respects_all_options(mock_run):
             "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
-            "ssh -q -o BatchMode=yes",
+            "ssh -qK -o BatchMode=yes",
             "--force",
             "-i",
             "-v",

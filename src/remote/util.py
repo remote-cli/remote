@@ -67,7 +67,7 @@ def rsync(
     """
 
     logger.info("Sync files from %s to %s", src, dst)
-    args = ["rsync", "-arlpmchz", "--copy-unsafe-links", "-e", "ssh -q -o BatchMode=yes", "--force"]
+    args = ["rsync", "-arlpmchz", "--copy-unsafe-links", "-e", "ssh -qK -o BatchMode=yes", "--force"]
     if info:
         args.append("-i")
     if verbose:
@@ -94,7 +94,7 @@ def rsync(
         file.unlink()
 
     if result.returncode != 0:
-        raise RemoteConnectionError(f"Failed to sync files betwen {src} and {dst}. Is remote host reachable")
+        raise RemoteConnectionError(f"Failed to sync files between {src} and {dst}. Is remote host reachable")
 
 
 def prepare_shell_command(command: Union[str, Sequence[str]]) -> str:
