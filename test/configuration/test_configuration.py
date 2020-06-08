@@ -1,17 +1,17 @@
 from pathlib import Path
 
-from remote.configuration import RemoteConfig, SyncIgnores, WorkspaceConfig
+from remote.configuration import RemoteConfig, SyncRules, WorkspaceConfig
 
 
 def test_empty_ignore():
     # new ignores object is created empty
-    ignores = SyncIgnores.new()
+    ignores = SyncRules.new()
     assert not ignores.pull
     assert not ignores.push
     assert not ignores.both
     assert ignores.is_empty()
-    assert not ignores.compile_push_ignores()
-    assert not ignores.compile_pull_ignores()
+    assert not ignores.compile_push()
+    assert not ignores.compile_pull()
 
     # if we add something it is not empty anymore
     ignores.pull.append("my_pattern")
@@ -20,14 +20,14 @@ def test_empty_ignore():
 
 def test_ignores_compilation():
     # Each collection should extend from both when compiling
-    ignores = SyncIgnores(push=["push_1", "push_2"], pull=["pull_1", "both_1"], both=["both_1", "both_2"])
-    assert ignores.compile_pull_ignores() == ["both_1", "both_2", "pull_1"]
-    assert ignores.compile_push_ignores() == ["both_1", "both_2", "push_1", "push_2"]
+    ignores = SyncRules(push=["push_1", "push_2"], pull=["pull_1", "both_1"], both=["both_1", "both_2"])
+    assert ignores.compile_pull() == ["both_1", "both_2", "pull_1"]
+    assert ignores.compile_push() == ["both_1", "both_2", "push_1", "push_2"]
 
 
 def test_check_adding_patter_extends_both():
-    ignores = SyncIgnores(push=["push_1", "push_2"], pull=["pull_1", "both_1"], both=["both_1", "both_3"])
-    ignores.add_ignores(["both_2"])
+    ignores = SyncRules(push=["push_1", "push_2"], pull=["pull_1", "both_1"], both=["both_1", "both_3"])
+    ignores.add(["both_2"])
     assert ignores.pull == ["both_1", "pull_1"]
     assert ignores.push == ["push_1", "push_2"]
     assert ignores.both == ["both_1", "both_2", "both_3"]

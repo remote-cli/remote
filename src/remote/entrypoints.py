@@ -136,7 +136,7 @@ def remote_ignore(ignore: List[str]):
     """
 
     config = load_cwd_workspace_config()
-    config.ignores.add_ignores(ignore)
+    config.ignores.add(ignore)
     save_config(config)
 
 

@@ -19,32 +19,32 @@ class RemoteConfig:
 
 
 @dataclass
-class SyncIgnores:
-    """Patterns used to ignore files when syncing with remote location"""
+class SyncRules:
+    """Patterns used by rsync to forcefully exclude or include files while syncyng with remote location"""
 
-    # patterns to ignore while pulling from remote
+    # patterns used by rsync to forcefully exclude or include files while pulling from remote
     pull: List[str]
-    # patterns to ignore while pushing from local
+    # patterns used by rsync to forcefully exclude or include files while pushing from local
     push: List[str]
-    # patterns to ignore while transferring files in both directions
+    # patterns used by rsync to forcefully exclude or include while transferring files in both directions
     both: List[str]
 
     def __post_init__(self):
         self.trim()
 
-    def compile_push_ignores(self):
+    def compile_push(self):
         result = set()
         result.update(self.push)
         result.update(self.both)
         return sorted(result)
 
-    def compile_pull_ignores(self):
+    def compile_pull(self):
         result = set()
         result.update(self.pull)
         result.update(self.both)
         return sorted(result)
 
-    def add_ignores(self, ignores: List[str]):
+    def add(self, ignores: List[str]):
         new_ignores = set()
         new_ignores.update(ignores)
         new_ignores.update(self.both)
@@ -59,7 +59,7 @@ class SyncIgnores:
         return not (self.pull or self.push or self.both)
 
     @classmethod
-    def new(cls) -> "SyncIgnores":
+    def new(cls) -> "SyncRules":
         return cls([], [], [])
 
 
@@ -74,11 +74,15 @@ class WorkspaceConfig:
     # index of default remote host connection
     default_configuration: int
     # patterns to ignore while syncing the workspace
-    ignores: SyncIgnores
+    ignores: SyncRules
+    # patterns to include while syncing the workspace
+    includes: SyncRules
 
     @classmethod
     def empty(cls, root: Path) -> "WorkspaceConfig":
-        return cls(root=root, configurations=[], default_configuration=0, ignores=SyncIgnores.new())
+        return cls(
+            root=root, configurations=[], default_configuration=0, ignores=SyncRules.new(), includes=SyncRules.new(),
+        )
 
     def add_remote_host(
         self, host: str, directory: Path, shell: Optional[str] = None, shell_options: Optional[str] = None

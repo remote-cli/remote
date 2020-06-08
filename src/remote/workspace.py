@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Union
 
-from .configuration import RemoteConfig, SyncIgnores, WorkspaceConfig
+from .configuration import RemoteConfig, SyncRules, WorkspaceConfig
 from .configuration.discovery import load_cwd_workspace_config
 from .util import prepare_shell_command, rsync, ssh
 
@@ -22,7 +22,9 @@ class SyncedWorkspace:
     # remote directory to use as working directory, relative to users home directory
     remote_working_dir: Path
     # sync ignore file patterns
-    ignores: SyncIgnores
+    ignores: SyncRules
+    # sync include file patterns
+    includes: SyncRules
 
     @classmethod
     def from_config(
@@ -41,7 +43,11 @@ class SyncedWorkspace:
         remote_working_dir = remote_config.directory / working_dir
 
         return cls(
-            local_root=config.root, remote=remote_config, remote_working_dir=remote_working_dir, ignores=config.ignores,
+            local_root=config.root,
+            remote=remote_config,
+            remote_working_dir=remote_working_dir,
+            ignores=config.ignores,
+            includes=config.includes,
         )
 
     @classmethod
@@ -124,7 +130,8 @@ cd {self.remote_working_dir}
         """
         src = f"{self.local_root}/"
         dst = f"{self.remote.host}:{self.remote.directory}"
-        ignores = self.ignores.compile_push_ignores()
+        ignores = self.ignores.compile_push()
+        includes = self.includes.compile_push()
         # If remote directory structure is deep and it was deleted, we need an rsync-path to recreate it before copying
         extra_args = ["--rsync-path", f"mkdir -p {self.remote.directory} && rsync"]
         rsync(
@@ -134,6 +141,7 @@ cd {self.remote_working_dir}
             verbose=verbose,
             dry_run=dry_run,
             mirror=mirror,
+            includes=includes,
             excludes=ignores,
             extra_args=extra_args,
         )
@@ -155,8 +163,9 @@ cd {self.remote_working_dir}
 
         src = f"{self.remote.host}:{self.remote.directory}/"
         dst = str(self.local_root)
-        ignores = self.ignores.compile_pull_ignores()
-        rsync(src, dst, info=info, verbose=verbose, dry_run=dry_run, excludes=ignores)
+        ignores = self.ignores.compile_pull()
+        includes = self.includes.compile_pull()
+        rsync(src, dst, info=info, verbose=verbose, includes=includes, dry_run=dry_run, excludes=ignores)
 
     def clear_remote(self):
         """Remove remote directory"""
