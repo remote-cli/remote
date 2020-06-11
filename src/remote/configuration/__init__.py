@@ -120,6 +120,6 @@ class ConfigurationMedium(metaclass=ABCMeta):
 
 
 @dataclass
-class RemotePortForwardingConfig:
+class PortForwardingConfig:
     remote_port: int
     local_port: int

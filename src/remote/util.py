@@ -9,9 +9,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import List, Optional, Sequence, Union
 
-from remote.port_forwarding import PortForwardingManager
-
-from .configuration import RemotePortForwardingConfig
+from .configuration import PortForwardingConfig
 from .exceptions import RemoteConnectionError, RemoteExecutionError
 
 logger = logging.getLogger(__name__)
@@ -121,7 +119,11 @@ def prepare_shell_command(command: Union[str, Sequence[str]]) -> str:
 
 
 def ssh(
-    host: str, command: str, dry_run: bool = False, raise_on_error: bool = True,
+    host: str,
+    command: str,
+    dry_run: bool = False,
+    raise_on_error: bool = True,
+    port_forwarding_config: Optional[PortForwardingConfig] = None,
 ):
     """Execute a command remotely using SSH and return it's exit code
 
@@ -129,10 +131,24 @@ def ssh(
     :param command: a command to execute
     :param dry_run: log command instead of executing it
     :param raise_on_error: raise an exception is remote execution
-
+    :param port_forwarding_config: configs to enable port forwarding while executing the command.
     :returns: exit code of remote command or 255 if connection didn't go through
     """
-    subprocess_command = ["ssh", "-tKq", "-o", "BatchMode=yes", host, command]
+
+    if port_forwarding_config:
+        subprocess_command = [
+            "ssh",
+            "-tKq",
+            "-o",
+            "BatchMode=yes",
+            "-L",
+            f"{port_forwarding_config.local_port}:localhost:{port_forwarding_config.remote_port}",
+            host,
+            command,
+        ]
+    else:
+        subprocess_command = ["ssh", "-tKq", "-o", "BatchMode=yes", host, command]
+
     logger.info("Executing:\n%s %s %s <<EOS\n%sEOS", *subprocess_command)
     if dry_run:
         return 0
@@ -147,12 +163,3 @@ def ssh(
         elif result.returncode != 0:
             raise RemoteExecutionError(f'Failed to execute "{command}" on host {host} ({result.returncode})')
     return result.returncode
-
-
-@contextmanager
-def optional(remote_port_forwarding_config: Optional[RemotePortForwardingConfig], host: str):
-    if remote_port_forwarding_config:
-        with PortForwardingManager(remote_port_forwarding_config, host):
-            yield
-    else:
-        yield

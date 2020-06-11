@@ -4,9 +4,11 @@ import sys
 
 from functools import wraps
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import click
+
+from remote.configuration import PortForwardingConfig
 
 from .configuration import WorkspaceConfig
 from .configuration.discovery import get_configuration_medium, load_cwd_workspace_config, save_config
@@ -179,16 +181,41 @@ def remote_set(index: int):
 @click.option("-m", "--mirror", is_flag=True, help="mirror local files on the remote host")
 @click.option("-v", "--verbose", is_flag=True, help="increase verbosity")
 @click.option("-e", is_flag=True, help="(deprecated) kept for backward compatibility, noop")
+@click.option(
+    "-t",
+    "--tunnel",
+    "port_args",
+    type=str,
+    help="Enable local port forwarding. Pass value as <remote port>:<local port>. \
+If local port is not passed, the local port value would be set to <remote port> value by default",
+)
 @click.argument("command", nargs=-1, required=True)
 @log_exceptions
-def remote(command: List[str], dry_run: bool, mirror: bool, verbose: bool, e: bool):
+def remote(command: List[str], dry_run: bool, mirror: bool, verbose: bool, e: bool, port_args: Optional[str]):
     """Sync local workspace files to remote machine, execute the COMMAND and sync files back regardless of the result"""
 
     if verbose:
         logging.basicConfig(level=logging.INFO, format=BASE_LOGGING_FORMAT)
 
+    port_forwarding_config = None
+    if port_args:
+        ports: List = port_args.split(":")
+        if len(ports) > 2:
+            click.secho("Please pass a valid value to enable local port forwarding", fg="yellow")
+            sys.exit(1)
+        try:
+            if len(ports) == 1:
+                port_forwarding_config = PortForwardingConfig(remote_port=int(ports[0]), local_port=int(ports[0]))
+            else:
+                port_forwarding_config = PortForwardingConfig(remote_port=int(ports[0]), local_port=int(ports[1]))
+        except ValueError:
+            click.secho("Please pass valid integer value for ports", fg="yellow")
+            sys.exit(1)
+
     workspace = SyncedWorkspace.from_cwd()
-    exit_code = workspace.execute_in_synced_env(command, dry_run=dry_run, verbose=verbose, mirror=mirror)
+    exit_code = workspace.execute_in_synced_env(
+        command, dry_run=dry_run, verbose=verbose, mirror=mirror, port_forwarding_config=port_forwarding_config,
+    )
     if exit_code != 0:
         click.secho(f"Remote command exited with {exit_code}", fg="yellow")
 

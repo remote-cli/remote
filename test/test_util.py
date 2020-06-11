@@ -2,6 +2,7 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
+from remote.configuration import PortForwardingConfig
 from remote.exceptions import RemoteConnectionError, RemoteExecutionError
 from remote.util import _temp_file, prepare_shell_command, rsync, ssh
 
@@ -129,16 +130,24 @@ def test_rsync_always_removes_temporary_files(mock_temp_file, mock_run, returnco
         assert not file.exists()
 
 
+@pytest.mark.parametrize(
+    "port_forwarding_config, expected_command_run",
+    [
+        (None, ["ssh", "-tKq", "-o", "BatchMode=yes", "my-host.example.com", "exit 0"]),
+        (
+            PortForwardingConfig(remote_port=5000, local_port=5005),
+            ["ssh", "-tKq", "-o", "BatchMode=yes", "-L", "5005:localhost:5000", "my-host.example.com", "exit 0"],
+        ),
+    ],
+)
 @patch("remote.util.subprocess.run")
-def test_ssh(mock_run):
+def test_ssh(mock_run, port_forwarding_config, expected_command_run):
     mock_run.return_value = MagicMock(returncode=0)
 
-    code = ssh("my-host.example.com", "exit 0")
+    code = ssh("my-host.example.com", "exit 0", port_forwarding_config=port_forwarding_config)
 
     assert code == 0
-    mock_run.assert_called_once_with(
-        ["ssh", "-tKq", "-o", "BatchMode=yes", "my-host.example.com", "exit 0"], stdout=ANY, stderr=ANY, stdin=ANY
-    )
+    mock_run.assert_called_once_with(expected_command_run, stdout=ANY, stderr=ANY, stdin=ANY)
 
 
 @pytest.mark.parametrize("returncode, error", [(255, RemoteConnectionError), (1, RemoteExecutionError)])

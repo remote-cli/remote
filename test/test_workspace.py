@@ -3,7 +3,7 @@ from unittest.mock import ANY, MagicMock, call, patch
 
 import pytest
 
-from remote.configuration import RemoteConfig
+from remote.configuration import PortForwardingConfig, RemoteConfig
 from remote.workspace import SyncedWorkspace
 
 
@@ -159,6 +159,37 @@ echo 'Hello World!'
 
 
 @patch("remote.util.subprocess.run")
+def test_execute_with_port_forwarding(mock_run, workspace):
+    mock_run.return_value = MagicMock(returncode=0)
+
+    code = workspace.execute(
+        ["echo", "Hello World!"], port_forwarding_config=PortForwardingConfig(local_port=5000, remote_port=5005),
+    )
+    mock_run.assert_called_once_with(
+        [
+            "ssh",
+            "-tKq",
+            "-o",
+            "BatchMode=yes",
+            "-L",
+            "5000:localhost:5005",
+            workspace.remote.host,
+            """\
+if [ -f remote/dir/.remoteenv ]; then
+  source remote/dir/.remoteenv 2>/dev/null 1>/dev/null
+fi
+cd remote/dir/foo/bar
+echo 'Hello World!'
+""",
+        ],
+        stderr=ANY,
+        stdin=ANY,
+        stdout=ANY,
+    )
+    assert code == 0
+
+
+@patch("remote.util.subprocess.run")
 def test_execute_and_sync(mock_run, workspace):
     mock_run.side_effect = [MagicMock(returncode=0), MagicMock(returncode=10), MagicMock(returncode=0)]
 
@@ -187,6 +218,73 @@ def test_execute_and_sync(mock_run, workspace):
                     "-tKq",
                     "-o",
                     "BatchMode=yes",
+                    workspace.remote.host,
+                    """\
+if [ -f remote/dir/.remoteenv ]; then
+  source remote/dir/.remoteenv 2>/dev/null 1>/dev/null
+fi
+cd remote/dir/foo/bar
+echo 'Hello World!'
+""",
+                ],
+                stderr=ANY,
+                stdin=ANY,
+                stdout=ANY,
+            ),
+            call(
+                [
+                    "rsync",
+                    "-arlpmchz",
+                    "--copy-unsafe-links",
+                    "-e",
+                    "ssh -qK -o BatchMode=yes",
+                    "--force",
+                    "--exclude-from",
+                    ANY,
+                    f"{workspace.remote.host}:{workspace.remote.directory}/",
+                    f"{workspace.local_root}",
+                ],
+                stderr=ANY,
+                stdout=ANY,
+            ),
+        ]
+    )
+    assert code == 10
+
+
+@patch("remote.util.subprocess.run")
+def test_execute_and_sync_with_port_forwarding(mock_run, workspace):
+    mock_run.side_effect = [MagicMock(returncode=0), MagicMock(returncode=10), MagicMock(returncode=0)]
+
+    code = workspace.execute_in_synced_env(
+        ["echo", "Hello World!"], port_forwarding_config=PortForwardingConfig(local_port=5000, remote_port=5005),
+    )
+    mock_run.assert_has_calls(
+        [
+            call(
+                [
+                    "rsync",
+                    "-arlpmchz",
+                    "--copy-unsafe-links",
+                    "-e",
+                    "ssh -qK -o BatchMode=yes",
+                    "--force",
+                    "--rsync-path",
+                    "mkdir -p remote/dir && rsync",
+                    f"{workspace.local_root}/",
+                    f"{workspace.remote.host}:{workspace.remote.directory}",
+                ],
+                stderr=ANY,
+                stdout=ANY,
+            ),
+            call(
+                [
+                    "ssh",
+                    "-tKq",
+                    "-o",
+                    "BatchMode=yes",
+                    "-L",
+                    "5000:localhost:5005",
                     workspace.remote.host,
                     """\
 if [ -f remote/dir/.remoteenv ]; then
