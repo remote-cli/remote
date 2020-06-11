@@ -7,8 +7,11 @@ import time
 
 from contextlib import contextmanager
 from pathlib import Path
-from typing import List, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
+from remote.port_forwarding import PortForwardingManager
+
+from .configuration import RemotePortForwardingConfig
 from .exceptions import RemoteConnectionError, RemoteExecutionError
 
 logger = logging.getLogger(__name__)
@@ -117,7 +120,9 @@ def prepare_shell_command(command: Union[str, Sequence[str]]) -> str:
     return " ".join(result)
 
 
-def ssh(host: str, command: str, dry_run: bool = False, raise_on_error: bool = True):
+def ssh(
+    host: str, command: str, dry_run: bool = False, raise_on_error: bool = True,
+):
     """Execute a command remotely using SSH and return it's exit code
 
     :param host: a name of the host that will be used for execution
@@ -142,3 +147,12 @@ def ssh(host: str, command: str, dry_run: bool = False, raise_on_error: bool = T
         elif result.returncode != 0:
             raise RemoteExecutionError(f'Failed to execute "{command}" on host {host} ({result.returncode})')
     return result.returncode
+
+
+@contextmanager
+def optional(remote_port_forwarding_config: Optional[RemotePortForwardingConfig], host: str):
+    if remote_port_forwarding_config:
+        with PortForwardingManager(remote_port_forwarding_config, host):
+            yield
+    else:
+        yield

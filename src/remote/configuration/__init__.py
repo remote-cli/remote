@@ -117,3 +117,9 @@ class ConfigurationMedium(metaclass=ABCMeta):
     @abstractmethod
     def generate_remote_directory(self, config: WorkspaceConfig) -> Path:
         """Renerate a default remote directory path for the workspace with provided configuration"""
+
+
+@dataclass
+class RemotePortForwardingConfig:
+    remote_port: int
+    local_port: int

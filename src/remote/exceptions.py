@@ -12,3 +12,7 @@ class RemoteExecutionError(RemoteError):
 
 class ConfigurationError(RemoteError):
     """The workspace configuration is incorrect"""
+
+
+class SshPortForwardingError(RemoteError):
+    """The ssh tunnel could not be established"""
