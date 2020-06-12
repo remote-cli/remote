@@ -1,3 +1,7 @@
+1.4.2
+-----
+* Add the possibility to start an ssh tunnel during the remote execution
+
 1.4.1
 -----
 * Fail ssh and rsync when password is requested by adding -o BatchMode=yes
