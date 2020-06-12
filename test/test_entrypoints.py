@@ -748,3 +748,59 @@ def test_remote_delete(mock_run, tmp_workspace):
     mock_run.assert_called_once_with(
         ["ssh", "-tKq", "-o", "BatchMode=yes", TEST_HOST, f"rm -rf {TEST_DIR}"], stdin=ANY, stdout=ANY, stderr=ANY,
     )
+
+
+@pytest.mark.parametrize(
+    "port_value, expected_output, expected_exit_code",
+    [
+        ("bar:foo", "Please pass valid integer value for ports", 1),
+        ("bar:5000", "Please pass valid integer value for ports", 1),
+        ("bar:foo:foo", "Please pass a valid value to enable local port forwarding", 1),
+        ("2.4:2.4", "Please pass valid integer value for ports", 1),
+    ],
+)
+@patch("remote.util.subprocess.run")
+def test_remote_port_forwarding_user_input_error(
+    mock_run, tmp_workspace, port_value, expected_output, expected_exit_code
+):
+    mock_run.return_value = Mock(returncode=0)
+    runner = CliRunner()
+    with cwd(tmp_workspace):
+        result = runner.invoke(entrypoints.remote, ["-t", port_value, "echo test"])
+        assert result.exit_code == expected_exit_code
+        assert expected_output in result.output
+
+
+@pytest.mark.parametrize(
+    "port_value, expected_port_forwarding, expected_exit_code",
+    [("5000", "5000:localhost:5000", 0), ("5000:5005", "5005:localhost:5000", 0)],
+)
+@patch("remote.util.subprocess.run")
+def test_remote_port_forwarding_successful(
+    mock_run, tmp_workspace, port_value, expected_port_forwarding, expected_exit_code
+):
+    mock_run.return_value = Mock(returncode=0)
+    runner = CliRunner()
+    with cwd(tmp_workspace):
+        result = runner.invoke(entrypoints.remote, ["-t", port_value, "echo test"])
+        assert result.exit_code == expected_exit_code
+        mock_run.assert_any_call(
+            [
+                "ssh",
+                "-tKq",
+                "-o",
+                "BatchMode=yes",
+                "-L",
+                expected_port_forwarding,
+                "test-host1.example.com",
+                """if [ -f .remotes/myproject/.remoteenv ]; then
+  source .remotes/myproject/.remoteenv 2>/dev/null 1>/dev/null
+fi
+cd .remotes/myproject
+echo test
+""",
+            ],
+            stderr=ANY,
+            stdin=ANY,
+            stdout=ANY,
+        )

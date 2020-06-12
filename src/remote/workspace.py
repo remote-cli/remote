@@ -2,7 +2,7 @@ import logging
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 from .configuration import RemoteConfig, SyncRules, WorkspaceConfig
 from .configuration.discovery import load_cwd_workspace_config
@@ -77,7 +77,13 @@ cd {self.remote_working_dir}
 """
 
     def execute_in_synced_env(
-        self, command: Union[str, List[str]], simple=False, verbose=False, dry_run=False, mirror=False
+        self,
+        command: Union[str, List[str]],
+        simple=False,
+        verbose=False,
+        dry_run=False,
+        mirror=False,
+        ports: Optional[Tuple[int, int]] = None,
     ) -> int:
         """Execute a command remotely using ssh. Push the local files to remote location before that and
         pull them back after command was executed regardless of the result.
@@ -91,25 +97,33 @@ cd {self.remote_working_dir}
         :param verbose: use verbose logging when running rsync and remote execution
         :param mirror: mirror local files remotely. It will remove ALL the remote files in the directory
                        that weren't synced from local workspace
-
+        :param ports: A tuple of remote port,local port to enable local port forwarding
         :returns: an exit code of a remote process
         """
 
         self.push(dry_run=dry_run, verbose=verbose, mirror=mirror)
-        exit_code = self.execute(command, simple=simple, dry_run=dry_run, raise_on_error=False)
+        exit_code = self.execute(command, simple=simple, dry_run=dry_run, raise_on_error=False, ports=ports,)
         if exit_code != 0:
             logger.info(f"Remote command exited with {exit_code}")
         self.pull(dry_run=dry_run, verbose=verbose)
         return exit_code
 
-    def execute(self, command: Union[str, List[str]], simple=False, dry_run=False, raise_on_error=True) -> int:
+    def execute(
+        self,
+        command: Union[str, List[str]],
+        simple=False,
+        dry_run=False,
+        raise_on_error=True,
+        ports: Optional[Tuple[int, int]] = None,
+    ) -> int:
         """Execute a command remotely using ssh
 
         :param command: a command to be executed or its parts
-        :param simple: True if command don't need to be preformatted and wrapped before execution.
+        :param simple: True if command don't need to be preformatted and wrapped before execution
                        commands with simple will be executed from user's remote home directory
-        :param dry_run: log the command to be executed but don't run it
-        :param raise_on_error: raise exception if error code was other than 0
+        :param dry_run: log the command to be executed but don't run it.
+        :param raise_on_error: raise exception if error code was other than 0.
+        :param ports: A tuple of remote port, local port to enable local port forwarding
 
         :returns: an exit code of a remote process
         """
@@ -117,7 +131,7 @@ cd {self.remote_working_dir}
         if not simple:
             formatted_command = self._generate_command(formatted_command)
 
-        return ssh(self.remote.host, formatted_command, dry_run=dry_run, raise_on_error=raise_on_error)
+        return ssh(self.remote.host, formatted_command, dry_run=dry_run, raise_on_error=raise_on_error, ports=ports,)
 
     def push(self, info=False, verbose=False, dry_run=False, mirror=False):
         """Push local workspace files to remote directory

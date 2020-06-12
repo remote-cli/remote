@@ -12,3 +12,7 @@ class RemoteExecutionError(RemoteError):
 
 class ConfigurationError(RemoteError):
     """The workspace configuration is incorrect"""
+
+
+class InvalidInputError(RemoteError):
+    """Invalid user input is passed from the cli"""
