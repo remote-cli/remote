@@ -2,9 +2,10 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
-from remote.configuration import PortForwardingConfig
-from remote.exceptions import RemoteConnectionError, RemoteExecutionError
-from remote.util import _temp_file, prepare_shell_command, rsync, ssh
+from pytest import raises
+
+from remote.exceptions import InvalidInputError, RemoteConnectionError, RemoteExecutionError
+from remote.util import _temp_file, parse_ports, prepare_shell_command, rsync, ssh
 
 
 def test_temp_file():
@@ -131,20 +132,20 @@ def test_rsync_always_removes_temporary_files(mock_temp_file, mock_run, returnco
 
 
 @pytest.mark.parametrize(
-    "port_forwarding_config, expected_command_run",
+    "ports, expected_command_run",
     [
         (None, ["ssh", "-tKq", "-o", "BatchMode=yes", "my-host.example.com", "exit 0"]),
         (
-            PortForwardingConfig(remote_port=5000, local_port=5005),
+            (5000, 5005),
             ["ssh", "-tKq", "-o", "BatchMode=yes", "-L", "5005:localhost:5000", "my-host.example.com", "exit 0"],
         ),
     ],
 )
 @patch("remote.util.subprocess.run")
-def test_ssh(mock_run, port_forwarding_config, expected_command_run):
+def test_ssh(mock_run, ports, expected_command_run):
     mock_run.return_value = MagicMock(returncode=0)
 
-    code = ssh("my-host.example.com", "exit 0", port_forwarding_config=port_forwarding_config)
+    code = ssh("my-host.example.com", "exit 0", ports=ports)
 
     assert code == 0
     mock_run.assert_called_once_with(expected_command_run, stdout=ANY, stderr=ANY, stdin=ANY)
@@ -206,3 +207,24 @@ def test_prepare_shell_command(command, expected):
     result = prepare_shell_command(command)
 
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    "port_value, expected_value, exception_raised",
+    [
+        (None, None, None),
+        ("5000", (5000, 5000), None),
+        ("5000:5200", (5000, 5200), None),
+        ("bar:foo", None, InvalidInputError),
+        ("2.5:100", None, InvalidInputError),
+        ("2.6:32:25", None, InvalidInputError),
+        ("bar", None, InvalidInputError),
+    ],
+)
+def test_parse_ports(port_value, expected_value, exception_raised):
+    if exception_raised:
+        with raises(exception_raised):
+            parse_ports(port_value)
+    else:
+        ports = parse_ports(port_value)
+        assert expected_value == ports

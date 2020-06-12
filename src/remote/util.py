@@ -7,9 +7,10 @@ import time
 
 from contextlib import contextmanager
 from pathlib import Path
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
-from .configuration import PortForwardingConfig
+from remote.exceptions import InvalidInputError
+
 from .exceptions import RemoteConnectionError, RemoteExecutionError
 
 logger = logging.getLogger(__name__)
@@ -123,7 +124,7 @@ def ssh(
     command: str,
     dry_run: bool = False,
     raise_on_error: bool = True,
-    port_forwarding_config: Optional[PortForwardingConfig] = None,
+    ports: Optional[Tuple[int, int]] = None,
 ):
     """Execute a command remotely using SSH and return it's exit code
 
@@ -131,23 +132,15 @@ def ssh(
     :param command: a command to execute
     :param dry_run: log command instead of executing it
     :param raise_on_error: raise an exception is remote execution
-    :param port_forwarding_config: configs to enable port forwarding while executing the command.
+    :param ports: A tuple of remote port, local port to enable local port forwarding
     :returns: exit code of remote command or 255 if connection didn't go through
     """
 
-    if port_forwarding_config:
-        subprocess_command = [
-            "ssh",
-            "-tKq",
-            "-o",
-            "BatchMode=yes",
-            "-L",
-            f"{port_forwarding_config.local_port}:localhost:{port_forwarding_config.remote_port}",
-            host,
-            command,
-        ]
-    else:
-        subprocess_command = ["ssh", "-tKq", "-o", "BatchMode=yes", host, command]
+    subprocess_command = ["ssh", "-tKq", "-o", "BatchMode=yes"]
+
+    if ports:
+        subprocess_command.extend(("-L", f"{ports[1]}:localhost:{ports[0]}",))
+    subprocess_command.extend((host, command))
 
     logger.info("Executing:\n%s %s %s <<EOS\n%sEOS", *subprocess_command)
     if dry_run:
@@ -163,3 +156,21 @@ def ssh(
         elif result.returncode != 0:
             raise RemoteExecutionError(f'Failed to execute "{command}" on host {host} ({result.returncode})')
     return result.returncode
+
+
+def parse_ports(port_args: Optional[str]) -> Optional[Tuple[int, int]]:
+    """Parse port values from the user input.
+    :param host: the input string from port tunnelling option.
+    :returns: A tuple of remote port, local port.
+    """
+    if not port_args:
+        return None
+    ports: List = port_args.split(":")
+    if len(ports) > 2:
+        raise InvalidInputError("Please pass a valid value to enable local port forwarding")
+    try:
+        if len(ports) == 1:
+            return (int(ports[0]), int(ports[0]))
+        return (int(ports[0]), int(ports[1]))
+    except ValueError as e:
+        raise InvalidInputError("Please pass valid integer value for ports") from e

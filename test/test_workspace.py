@@ -3,7 +3,7 @@ from unittest.mock import ANY, MagicMock, call, patch
 
 import pytest
 
-from remote.configuration import PortForwardingConfig, RemoteConfig
+from remote.configuration import RemoteConfig
 from remote.workspace import SyncedWorkspace
 
 
@@ -162,9 +162,7 @@ echo 'Hello World!'
 def test_execute_with_port_forwarding(mock_run, workspace):
     mock_run.return_value = MagicMock(returncode=0)
 
-    code = workspace.execute(
-        ["echo", "Hello World!"], port_forwarding_config=PortForwardingConfig(local_port=5000, remote_port=5005),
-    )
+    code = workspace.execute(["echo", "Hello World!"], ports=(5005, 5000),)
     mock_run.assert_called_once_with(
         [
             "ssh",
@@ -256,9 +254,7 @@ echo 'Hello World!'
 def test_execute_and_sync_with_port_forwarding(mock_run, workspace):
     mock_run.side_effect = [MagicMock(returncode=0), MagicMock(returncode=10), MagicMock(returncode=0)]
 
-    code = workspace.execute_in_synced_env(
-        ["echo", "Hello World!"], port_forwarding_config=PortForwardingConfig(local_port=5000, remote_port=5005),
-    )
+    code = workspace.execute_in_synced_env(["echo", "Hello World!"], ports=(5005, 5000),)
     mock_run.assert_has_calls(
         [
             call(
