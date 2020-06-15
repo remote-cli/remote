@@ -245,7 +245,7 @@ def remote_pull(dry_run: bool, verbose: bool, path: List[str]):
         return
 
     for subpath in path:
-        workspace.pull(info=True, verbose=verbose, dry_run=dry_run, subpath=subpath)
+        workspace.pull(info=True, verbose=verbose, dry_run=dry_run, subpath=Path(subpath))
 
 
 @click.command(context_settings=DEFAULT_CONTEXT_SETTINGS)

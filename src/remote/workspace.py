@@ -79,10 +79,10 @@ cd {self.remote_working_dir}
     def execute_in_synced_env(
         self,
         command: Union[str, List[str]],
-        simple=False,
-        verbose=False,
-        dry_run=False,
-        mirror=False,
+        simple: bool = False,
+        verbose: bool = False,
+        dry_run: bool = False,
+        mirror: bool = False,
         ports: Optional[Tuple[int, int]] = None,
     ) -> int:
         """Execute a command remotely using ssh. Push the local files to remote location before that and
@@ -102,7 +102,7 @@ cd {self.remote_working_dir}
         """
 
         self.push(dry_run=dry_run, verbose=verbose, mirror=mirror)
-        exit_code = self.execute(command, simple=simple, dry_run=dry_run, raise_on_error=False, ports=ports,)
+        exit_code = self.execute(command, simple=simple, dry_run=dry_run, raise_on_error=False, ports=ports)
         if exit_code != 0:
             logger.info(f"Remote command exited with {exit_code}")
         self.pull(dry_run=dry_run, verbose=verbose)
@@ -111,9 +111,9 @@ cd {self.remote_working_dir}
     def execute(
         self,
         command: Union[str, List[str]],
-        simple=False,
-        dry_run=False,
-        raise_on_error=True,
+        simple: bool = False,
+        dry_run: bool = False,
+        raise_on_error: bool = True,
         ports: Optional[Tuple[int, int]] = None,
     ) -> int:
         """Execute a command remotely using ssh
@@ -131,9 +131,9 @@ cd {self.remote_working_dir}
         if not simple:
             formatted_command = self._generate_command(formatted_command)
 
-        return ssh(self.remote.host, formatted_command, dry_run=dry_run, raise_on_error=raise_on_error, ports=ports,)
+        return ssh(self.remote.host, formatted_command, dry_run=dry_run, raise_on_error=raise_on_error, ports=ports)
 
-    def push(self, info=False, verbose=False, dry_run=False, mirror=False):
+    def push(self, info: bool = False, verbose: bool = False, dry_run: bool = False, mirror: bool = False) -> None:
         """Push local workspace files to remote directory
 
         :param info: use info logging when running rsync
@@ -154,13 +154,14 @@ cd {self.remote_working_dir}
             info=info,
             verbose=verbose,
             dry_run=dry_run,
+            delete=True,  # We want to delete the remote file if it's local copy was removed
             mirror=mirror,
             includes=includes,
             excludes=ignores,
             extra_args=extra_args,
         )
 
-    def pull(self, info=False, verbose=False, dry_run=False, subpath=None):
+    def pull(self, info: bool = False, verbose: bool = False, dry_run: bool = False, subpath: Path = None) -> None:
         """Pull remote files to local workspace
 
         :param info: use info logging when running rsync
@@ -171,7 +172,10 @@ cd {self.remote_working_dir}
         """
         if subpath is not None:
             src = f"{self.remote.host}:{self.remote.directory}/{subpath}"
-            dst = str(self.local_root / subpath)
+            dst_path = self.local_root / subpath.parent
+            dst_path.mkdir(parents=True, exist_ok=True)
+            dst = f"{dst_path}/"
+
             rsync(src, dst, info=info, verbose=verbose, dry_run=dry_run)
             return
 
@@ -181,10 +185,10 @@ cd {self.remote_working_dir}
         includes = self.includes.compile_pull()
         rsync(src, dst, info=info, verbose=verbose, includes=includes, dry_run=dry_run, excludes=ignores)
 
-    def clear_remote(self):
+    def clear_remote(self) -> None:
         """Remove remote directory"""
         self.execute(f"rm -rf {self.remote.directory}", simple=True)
 
-    def create_remote(self):
+    def create_remote(self) -> None:
         """Remove remote directory"""
         self.execute(f"mkdir -p {self.remote.directory}", simple=True)

@@ -52,6 +52,7 @@ def rsync(
     info: bool = False,
     verbose: bool = False,
     dry_run: bool = False,
+    delete: bool = False,
     mirror: bool = False,
     excludes: List[str] = None,
     includes: List[str] = None,
@@ -64,8 +65,12 @@ def rsync(
     :param info: True if need to add -i flag to rsync
     :param verbose: True if need to add -v flag to rsync
     :param dry_run: True if need to add -n flag to rsync
+    :param delete: True if all files inside destination directory need to be deleted if they were not bringed from source and
+                   they are not excluded by exclude filters
     :param mirror: True if all files inside destination directory need to be deleted if they were not bringed from source
     :param excludes: List of file patterns to exclude from syncing
+    :param includes: List of file patterns to include even if they were excluded by exclude filters
+    :param extra_args: Extra arguments for rsync function
     """
 
     logger.info("Sync files from %s to %s", src, dst)
@@ -76,8 +81,10 @@ def rsync(
         args.append("-v")
     if dry_run:
         args.append("-n")
+    if delete or mirror:
+        args.append("--delete")
     if mirror:
-        args.extend(("--delete", "--delete-after", "--delete-excluded"))
+        args.extend(("--delete-after", "--delete-excluded"))
     if extra_args:
         args.extend(extra_args)
 
@@ -96,7 +103,7 @@ def rsync(
         file.unlink()
 
     if result.returncode != 0:
-        raise RemoteConnectionError(f"Failed to sync files between {src} and {dst}. Is remote host reachable")
+        raise RemoteConnectionError(f"Failed to sync files between {src} and {dst}. Is remote host reachable?")
 
 
 def prepare_shell_command(command: Union[str, Sequence[str]]) -> str:
