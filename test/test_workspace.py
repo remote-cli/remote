@@ -77,6 +77,7 @@ def test_push(mock_run, workspace):
             "-e",
             "ssh -qK -o BatchMode=yes",
             "--force",
+            "--delete",
             "--rsync-path",
             "mkdir -p remote/dir && rsync",
             f"{workspace.local_root}/",
@@ -114,7 +115,7 @@ def test_pull(mock_run, workspace):
 def test_pull_with_subdir(mock_run, workspace):
     mock_run.return_value = MagicMock(returncode=0)
 
-    workspace.pull(subpath="some-path")
+    workspace.pull(subpath=Path("some-path"))
     mock_run.assert_called_once_with(
         [
             "rsync",
@@ -124,7 +125,7 @@ def test_pull_with_subdir(mock_run, workspace):
             "ssh -qK -o BatchMode=yes",
             "--force",
             f"{workspace.remote.host}:{workspace.remote.directory}/some-path",
-            f"{workspace.local_root}/some-path",
+            f"{workspace.local_root}/",
         ],
         stderr=ANY,
         stdout=ANY,
@@ -202,6 +203,7 @@ def test_execute_and_sync(mock_run, workspace):
                     "-e",
                     "ssh -qK -o BatchMode=yes",
                     "--force",
+                    "--delete",
                     "--rsync-path",
                     "mkdir -p remote/dir && rsync",
                     f"{workspace.local_root}/",
@@ -265,6 +267,7 @@ def test_execute_and_sync_with_port_forwarding(mock_run, workspace):
                     "-e",
                     "ssh -qK -o BatchMode=yes",
                     "--force",
+                    "--delete",
                     "--rsync-path",
                     "mkdir -p remote/dir && rsync",
                     f"{workspace.local_root}/",
