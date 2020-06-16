@@ -65,9 +65,9 @@ def rsync(
     :param info: True if need to add -i flag to rsync
     :param verbose: True if need to add -v flag to rsync
     :param dry_run: True if need to add -n flag to rsync
-    :param delete: True if all files inside destination directory need to be deleted if they were not bringed from source and
+    :param delete: True if all files inside destination directory need to be deleted if they were not found at source and
                    they are not excluded by exclude filters
-    :param mirror: True if all files inside destination directory need to be deleted if they were not bringed from source
+    :param mirror: True if all files inside destination directory need to be deleted if they were not found at source
     :param excludes: List of file patterns to exclude from syncing
     :param includes: List of file patterns to include even if they were excluded by exclude filters
     :param extra_args: Extra arguments for rsync function

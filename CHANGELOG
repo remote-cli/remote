@@ -1,3 +1,7 @@
+1.4.3
+-----
+* Fixed rsync bugs
+
 1.4.2
 -----
 * Add the possibility to start an ssh tunnel during the remote execution
