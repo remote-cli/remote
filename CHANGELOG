@@ -1,3 +1,7 @@
+1.4.4
+-----
+* add the host labeling in toml config files
+
 1.4.3
 -----
 * Fixed rsync bugs
