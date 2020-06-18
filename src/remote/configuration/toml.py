@@ -302,6 +302,7 @@ class TomlConfigurationMedium(ConfigurationMedium):
                     host=connection.host,
                     directory=connection.directory or self._generate_remote_directory_from_path(workspace_root),
                     supports_gssapi=connection.supports_gssapi_auth,
+                    label=connection.label,
                 )
             )
         ignores = SyncRules(

@@ -28,17 +28,28 @@ class SyncedWorkspace:
 
     @classmethod
     def from_config(
-        cls, config: WorkspaceConfig, working_dir: Path, config_num: Optional[int] = None
+        cls, config: WorkspaceConfig, working_dir: Path, config_num: Optional[Union[str, int]] = None
     ) -> "SyncedWorkspace":
         """Create a workspace from configuration object
 
         :param config: workspace config
         :param working_dir: a working directory inside the workspace config
-        :param config_num: if present, overrides the default remote host to use
+        :param config_num: if present, and is a string, filters by label, else overrides the default remote host to use the index
         """
         working_dir = working_dir.relative_to(config.root)
         if config_num is None:
             config_num = config.default_configuration
+        elif type(config_num) == str:
+            config_num = next(
+                (
+                    index
+                    for index, remote_config in enumerate(config.configurations)
+                    if remote_config.label == config_num
+                ),
+                config.default_configuration,
+            )
+        else:
+            config_num = config_num
         remote_config = config.configurations[config_num]
         remote_working_dir = remote_config.directory / working_dir
 

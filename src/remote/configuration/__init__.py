@@ -18,6 +18,8 @@ class RemoteConfig:
     shell_options: str = ""
     # whether remote machine supports gssapi-* auth or not
     supports_gssapi: bool = True
+    # Add label to identify remote
+    label: Optional[str] = None
 
 
 @dataclass
@@ -87,10 +89,15 @@ class WorkspaceConfig:
         )
 
     def add_remote_host(
-        self, host: str, directory: Path, shell: Optional[str] = None, shell_options: Optional[str] = None
+        self,
+        host: str,
+        directory: Path,
+        shell: Optional[str] = None,
+        shell_options: Optional[str] = None,
+        label: Optional[str] = None,
     ) -> Tuple[bool, int]:
         remote_config = RemoteConfig(
-            host=host, directory=directory, shell=shell or "sh", shell_options=shell_options or "",
+            host=host, directory=directory, shell=shell or "sh", shell_options=shell_options or "", label=label
         )
         for num, cfg in enumerate(self.configurations):
             if cfg.host == remote_config.host and cfg.directory == remote_config.directory:
