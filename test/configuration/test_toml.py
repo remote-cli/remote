@@ -719,9 +719,9 @@ def test_medium_is_workspace_root(mock_home):
             WorkspaceConfig(
                 root=Path("/root/foo/bar"),
                 configurations=[
-                    RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace")),
+                    RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"), label="foo"),
                     RemoteConfig(
-                        host="other-host.example.com", directory=Path(".remotes/other-workspace"), supports_gssapi=False
+                        host="other-host.example.com", directory=Path(".remotes/other-workspace"), supports_gssapi=False, label="bar"
                     ),
                 ],
                 default_configuration=1,
@@ -733,12 +733,14 @@ def test_medium_is_workspace_root(mock_home):
 host = "test-host.example.com"
 directory = ".remotes/workspace"
 supports_gssapi_auth = true
+label = "foo"
 
 [[hosts]]
 host = "other-host.example.com"
 directory = ".remotes/other-workspace"
 default = true
 supports_gssapi_auth = false
+label = "bar"
 
 [push]
 exclude = [ ".git", "env",]
