@@ -1,12 +1,12 @@
 import logging
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
 from .configuration import RemoteConfig, SyncRules, WorkspaceConfig
 from .configuration.discovery import load_cwd_workspace_config
-from .util import prepare_shell_command, rsync, ssh
+from .util import ForwardingOptions, Ssh, prepare_shell_command, rsync
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,13 @@ class SyncedWorkspace:
             workspaces.append(cls.from_config(config, Path.cwd(), i))
 
         return workspaces
+
+    def get_ssh(self, port_forwarding: Optional[ForwardingOptions] = None):
+        return Ssh(self.remote.host, use_gssapi_auth=self.remote.supports_gssapi, local_port_forwarding=port_forwarding)
+
+    def get_ssh_for_rsync(self):
+        ssh = self.get_ssh()
+        return replace(ssh, force_tty=False)
 
     def _generate_command(self, command: str) -> str:
         return f"""\
@@ -131,7 +138,9 @@ cd {self.remote_working_dir}
         if not simple:
             formatted_command = self._generate_command(formatted_command)
 
-        return ssh(self.remote.host, formatted_command, dry_run=dry_run, raise_on_error=raise_on_error, ports=ports)
+        port_forwarding = ForwardingOptions(remote_port=ports[0], local_port=ports[1]) if ports else None
+        ssh = self.get_ssh(port_forwarding)
+        return ssh.execute(formatted_command, dry_run, raise_on_error)
 
     def push(self, info: bool = False, verbose: bool = False, dry_run: bool = False, mirror: bool = False) -> None:
         """Push local workspace files to remote directory
@@ -151,6 +160,7 @@ cd {self.remote_working_dir}
         rsync(
             src,
             dst,
+            self.get_ssh_for_rsync(),
             info=info,
             verbose=verbose,
             dry_run=dry_run,
@@ -176,14 +186,23 @@ cd {self.remote_working_dir}
             dst_path.mkdir(parents=True, exist_ok=True)
             dst = f"{dst_path}/"
 
-            rsync(src, dst, info=info, verbose=verbose, dry_run=dry_run)
+            rsync(src, dst, self.get_ssh_for_rsync(), info=info, verbose=verbose, dry_run=dry_run)
             return
 
         src = f"{self.remote.host}:{self.remote.directory}/"
         dst = str(self.local_root)
         ignores = self.ignores.compile_pull()
         includes = self.includes.compile_pull()
-        rsync(src, dst, info=info, verbose=verbose, includes=includes, dry_run=dry_run, excludes=ignores)
+        rsync(
+            src,
+            dst,
+            self.get_ssh_for_rsync(),
+            info=info,
+            verbose=verbose,
+            includes=includes,
+            dry_run=dry_run,
+            excludes=ignores,
+        )
 
     def clear_remote(self) -> None:
         """Remove remote directory"""

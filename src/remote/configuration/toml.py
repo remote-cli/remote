@@ -90,6 +90,10 @@ class ConnectionConfig(ConfigModel):
     directory: Optional[Path] = None
     default: bool = False
     label: Optional[str] = None
+    # True if remote host supports gssapi-* auth methods. Should de disable if it isn't because it might result
+    # in connection hanging for some time before establishing
+    # The default is True for backward compatibility, we might reconsider this in next major version
+    supports_gssapi_auth: bool = Field(default=True)
 
     @validator("host")
     def hostname_valid(cls, host):
@@ -292,10 +296,12 @@ class TomlConfigurationMedium(ConfigurationMedium):
         for num, connection in enumerate(merged_config.hosts):
             if connection.default:
                 configuration_index = num
+
             configurations.append(
                 RemoteConfig(
                     host=connection.host,
                     directory=connection.directory or self._generate_remote_directory_from_path(workspace_root),
+                    supports_gssapi=connection.supports_gssapi_auth,
                 )
             )
         ignores = SyncRules(
@@ -330,7 +336,10 @@ class TomlConfigurationMedium(ConfigurationMedium):
         for num, connection in enumerate(config.configurations):
             local_config.hosts.append(
                 ConnectionConfig(
-                    host=connection.host, directory=connection.directory, default=num == config.default_configuration
+                    host=connection.host,
+                    directory=connection.directory,
+                    default=num == config.default_configuration,
+                    supports_gssapi_auth=connection.supports_gssapi,
                 )
             )
         for key, value in asdict(config.ignores).items():

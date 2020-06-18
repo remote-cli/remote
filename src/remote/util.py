@@ -6,6 +6,8 @@ import tempfile
 import time
 
 from contextlib import contextmanager
+from dataclasses import dataclass
+from enum import IntEnum
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple, Union
 
@@ -46,9 +48,97 @@ def _measure_duration(operation: str):
     logger.info("%s done in %.2f seconds", operation, runtime)
 
 
+@dataclass(frozen=True)
+class ForwardingOptions:
+    """Port forwarding options for ssh"""
+
+    remote_port: int
+    local_port: int
+    host: str = "localhost"
+
+
+class VerbosityLevel(IntEnum):
+    QUIET = 1
+    DEFAULT = 2
+    VERBOSE = 3
+
+
+@dataclass(frozen=True)
+class Ssh:
+    """Ssh configuration class, pregenrates and executes commands remotely"""
+
+    host: str
+    force_tty: bool = True
+    verbosity_level: VerbosityLevel = VerbosityLevel.QUIET
+    use_gssapi_auth: bool = True
+    disable_password_auth: bool = True
+    local_port_forwarding: Optional[ForwardingOptions] = None
+
+    def generate_command(self) -> List[str]:
+        """Generate the base ssh command to execute (without host)"""
+        command = ["ssh"]
+        options = "t" if self.force_tty else ""
+        if self.use_gssapi_auth:
+            options += "K"
+        if self.verbosity_level <= VerbosityLevel.QUIET:
+            options += "q"
+        elif self.verbosity_level >= VerbosityLevel.VERBOSE:
+            options += "v"
+
+        if options:
+            command.append(f"-{options}")
+        if self.disable_password_auth:
+            command.extend(("-o", "BatchMode=yes"))
+
+        if self.local_port_forwarding:
+            command.extend(
+                (
+                    "-L",
+                    (
+                        f"{self.local_port_forwarding.local_port}:"
+                        f"{self.local_port_forwarding.host}:{self.local_port_forwarding.remote_port}"
+                    ),
+                )
+            )
+
+        return command
+
+    def generate_command_str(self) -> str:
+        """Generate the base ssh command to execute (without host)"""
+        return prepare_shell_command(self.generate_command())
+
+    def execute(self, command: str, dry_run: bool = False, raise_on_error: bool = True) -> int:
+        """Execute a command remotely using SSH and return it's exit code
+
+        :param command: a command to execute
+        :param dry_run: log command instead of executing it
+        :param raise_on_error: raise an exception is remote execution
+
+        :returns: exit code of remote command or 255 if connection didn't go through
+        """
+        subprocess_command = self.generate_command()
+
+        logger.info("Executing:\n%s %s <<EOS\n%sEOS", " ".join(subprocess_command), self.host, command)
+        if dry_run:
+            return 0
+
+        subprocess_command.extend((self.host, command))
+        with _measure_duration("Execution"):
+            result = subprocess.run(subprocess_command, stdout=sys.stdout, stderr=sys.stderr, stdin=sys.stdin)
+
+        if raise_on_error:
+            # ssh exits with the exit status of the remote command or with 255 if an error occurred
+            if result.returncode == 255:
+                raise RemoteConnectionError(f"Failed to connect to {self.host}")
+            elif result.returncode != 0:
+                raise RemoteExecutionError(f'Failed to execute "{command}" on host {self.host} ({result.returncode})')
+        return result.returncode
+
+
 def rsync(
     src: str,
     dst: str,
+    ssh: Ssh,
     info: bool = False,
     verbose: bool = False,
     dry_run: bool = False,
@@ -62,6 +152,7 @@ def rsync(
 
     :param src: Source files to copy. If source is a directory and you need to copy its contents, append / to its path
     :param dst: Destination file or directory
+    :param ssh: ssh configuration to use for rsync
     :param info: True if need to add -i flag to rsync
     :param verbose: True if need to add -v flag to rsync
     :param dry_run: True if need to add -n flag to rsync
@@ -74,7 +165,7 @@ def rsync(
     """
 
     logger.info("Sync files from %s to %s", src, dst)
-    args = ["rsync", "-arlpmchz", "--copy-unsafe-links", "-e", "ssh -qK -o BatchMode=yes", "--force"]
+    args = ["rsync", "-arlpmchz", "--copy-unsafe-links", "-e", ssh.generate_command_str(), "--force"]
     if info:
         args.append("-i")
     if verbose:
@@ -124,45 +215,6 @@ def prepare_shell_command(command: Union[str, Sequence[str]]) -> str:
             result.append(item)
 
     return " ".join(result)
-
-
-def ssh(
-    host: str,
-    command: str,
-    dry_run: bool = False,
-    raise_on_error: bool = True,
-    ports: Optional[Tuple[int, int]] = None,
-):
-    """Execute a command remotely using SSH and return it's exit code
-
-    :param host: a name of the host that will be used for execution
-    :param command: a command to execute
-    :param dry_run: log command instead of executing it
-    :param raise_on_error: raise an exception is remote execution
-    :param ports: A tuple of remote port, local port to enable local port forwarding
-    :returns: exit code of remote command or 255 if connection didn't go through
-    """
-
-    subprocess_command = ["ssh", "-tKq", "-o", "BatchMode=yes"]
-
-    if ports:
-        subprocess_command.extend(("-L", f"{ports[1]}:localhost:{ports[0]}",))
-    subprocess_command.extend((host, command))
-
-    logger.info("Executing:\n%s %s %s <<EOS\n%sEOS", *subprocess_command)
-    if dry_run:
-        return 0
-
-    with _measure_duration("Execution"):
-        result = subprocess.run(subprocess_command, stdout=sys.stdout, stderr=sys.stderr, stdin=sys.stdin)
-
-    if raise_on_error:
-        # ssh exits with the exit status of the remote command or with 255 if an error occurred
-        if result.returncode == 255:
-            raise RemoteConnectionError(f"Failed to connect to {host}")
-        elif result.returncode != 0:
-            raise RemoteExecutionError(f'Failed to execute "{command}" on host {host} ({result.returncode})')
-    return result.returncode
 
 
 def parse_ports(port_args: Optional[str]) -> Optional[Tuple[int, int]]:

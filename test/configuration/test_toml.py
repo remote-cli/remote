@@ -146,6 +146,7 @@ def test_save_global_config(mock_home):
 host = "test-host.example.com"
 default = true
 label = "foo"
+supports_gssapi_auth = true
 
 [push]
 exclude = [ "env", ".git",]
@@ -713,7 +714,9 @@ def test_medium_is_workspace_root(mock_home):
                 root=Path("/root/foo/bar"),
                 configurations=[
                     RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace")),
-                    RemoteConfig(host="other-host.example.com", directory=Path(".remotes/other-workspace")),
+                    RemoteConfig(
+                        host="other-host.example.com", directory=Path(".remotes/other-workspace"), supports_gssapi=False
+                    ),
                 ],
                 default_configuration=1,
                 ignores=SyncRules(pull=["src/generated"], push=[".git", "env"], both=["build", ".remote.toml"]),
@@ -723,11 +726,13 @@ def test_medium_is_workspace_root(mock_home):
 [[hosts]]
 host = "test-host.example.com"
 directory = ".remotes/workspace"
+supports_gssapi_auth = true
 
 [[hosts]]
 host = "other-host.example.com"
 directory = ".remotes/other-workspace"
 default = true
+supports_gssapi_auth = false
 
 [push]
 exclude = [ ".git", "env",]
