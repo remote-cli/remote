@@ -89,6 +89,7 @@ class ConnectionConfig(ConfigModel):
     host: str
     directory: Optional[Path] = None
     default: bool = False
+    label: Optional[str] = None
 
     @validator("host")
     def hostname_valid(cls, host):
