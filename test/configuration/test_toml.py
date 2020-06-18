@@ -34,6 +34,7 @@ remote_root = "my-remotes"
 [[hosts]]
 host = "test-host.example.com"
 default = true
+label = "foo"
 
 [push]
 exclude = ["env", ".git"]
@@ -48,7 +49,7 @@ exclude = ["build"]
 
     config = load_global_config()
     assert config == GlobalConfig(
-        hosts=[ConnectionConfig(host="test-host.example.com", directory=None, default=True)],
+        hosts=[ConnectionConfig(host="test-host.example.com", directory=None, default=True, label="foo")],
         push=SyncRulesConfig(exclude=["env", ".git"]),
         pull=SyncRulesConfig(exclude=["src/generated"]),
         both=SyncRulesConfig(exclude=["build"]),
@@ -130,7 +131,7 @@ def test_load_global_config_error(mock_home, config_text, error_text):
 def test_save_global_config(mock_home):
     save_global_config(
         GlobalConfig(
-            hosts=[ConnectionConfig(host="test-host.example.com", directory=None, default=True)],
+            hosts=[ConnectionConfig(host="test-host.example.com", directory=None, default=True, label="foo")],
             push=SyncRulesConfig(exclude=["env", ".git"], include=["env"]),
             pull=SyncRulesConfig(exclude=["src/generated"], include=[".gradle"]),
             both=SyncRulesConfig(exclude=["build", ".cache"], include=[".cache"]),
@@ -144,6 +145,7 @@ def test_save_global_config(mock_home):
 [[hosts]]
 host = "test-host.example.com"
 default = true
+label = "foo"
 
 [push]
 exclude = [ "env", ".git",]
