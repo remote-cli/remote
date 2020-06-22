@@ -4,6 +4,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
+from remote.exceptions import InvalidRemoteHostLabel
+
 from .configuration import RemoteConfig, SyncRules, WorkspaceConfig
 from .configuration.discovery import load_cwd_workspace_config
 from .util import ForwardingOptions, Ssh, prepare_shell_command, rsync
@@ -28,29 +30,31 @@ class SyncedWorkspace:
 
     @classmethod
     def from_config(
-        cls, config: WorkspaceConfig, working_dir: Path, config_num: Optional[Union[str, int]] = None
+        cls, config: WorkspaceConfig, working_dir: Path, remote_host_id: Optional[Union[str, int]] = None
     ) -> "SyncedWorkspace":
         """Create a workspace from configuration object
 
         :param config: workspace config
         :param working_dir: a working directory inside the workspace config
-        :param config_num: if present, and is a string, filters by label, else overrides the default remote host to use the index
+        :param remote_host_id: if present, and is a string, filters by label
         """
         working_dir = working_dir.relative_to(config.root)
-        if config_num is None:
-            config_num = config.default_configuration
-        elif type(config_num) == str:
-            config_num = next(
+        if remote_host_id is None:
+            index = config.default_configuration
+        elif type(remote_host_id) == str:
+            index = next(
                 (
                     index
                     for index, remote_config in enumerate(config.configurations)
-                    if remote_config.label == config_num
+                    if remote_config.label == remote_host_id
                 ),
-                config.default_configuration,
+                None,
             )
+            if index is None:
+                raise InvalidRemoteHostLabel(f"The label {remote_host_id} cannot be found in the configuration")
         else:
-            config_num = config_num
-        remote_config = config.configurations[config_num]
+            index = remote_host_id
+        remote_config = config.configurations[index]
         remote_working_dir = remote_config.directory / working_dir
 
         return cls(
