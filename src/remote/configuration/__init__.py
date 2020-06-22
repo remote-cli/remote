@@ -16,6 +16,8 @@ class RemoteConfig:
     shell: str = "sh"
     # shell options to use on remote machine
     shell_options: str = ""
+    # whether remote machine supports gssapi-* auth or not
+    supports_gssapi: bool = True
 
 
 @dataclass

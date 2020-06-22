@@ -5,7 +5,7 @@ import pytest
 from pytest import raises
 
 from remote.exceptions import InvalidInputError, RemoteConnectionError, RemoteExecutionError
-from remote.util import _temp_file, parse_ports, prepare_shell_command, rsync, ssh
+from remote.util import ForwardingOptions, Ssh, VerbosityLevel, _temp_file, parse_ports, prepare_shell_command, rsync
 
 
 def test_temp_file():
@@ -23,7 +23,12 @@ def test_temp_file():
     assert file.name.startswith("remote.")
 
 
-def test_rsync_copies_files(tmp_path):
+@pytest.fixture
+def rsync_ssh():
+    return Ssh("test-host", force_tty=False)
+
+
+def test_rsync_copies_files(tmp_path, rsync_ssh):
     src = tmp_path / "src"
     src.mkdir()
     (src / "first").write_text("TEST first")
@@ -32,7 +37,7 @@ def test_rsync_copies_files(tmp_path):
     (src / "fourth.txt").write_text("TEST fourth")
 
     dst = tmp_path / "dst"
-    rsync(f"{src}/", str(dst), excludes=["f*"], includes=["*.txt"])
+    rsync(f"{src}/", str(dst), rsync_ssh, excludes=["f*"], includes=["*.txt"])
 
     assert dst.exists()
     assert not (dst / "first").exists()
@@ -44,7 +49,7 @@ def test_rsync_copies_files(tmp_path):
     assert (dst / "fourth.txt").read_text() == "TEST fourth"
 
 
-def test_rsync_copies_files_with_mirror(tmp_path):
+def test_rsync_copies_files_with_mirror(tmp_path, rsync_ssh):
     src = tmp_path / "src"
     src.mkdir()
     (src / "first").write_text("TEST first")
@@ -57,7 +62,7 @@ def test_rsync_copies_files_with_mirror(tmp_path):
     (dst / "first").write_text("TEST first")
 
     # since we use mirror=True "first" should be deleted in dst
-    rsync(f"{src}/", str(dst), excludes=["f*"], mirror=True)
+    rsync(f"{src}/", str(dst), rsync_ssh, excludes=["f*"], mirror=True)
 
     assert dst.exists()
     assert not (dst / "first").exists()
@@ -69,9 +74,9 @@ def test_rsync_copies_files_with_mirror(tmp_path):
 
 
 @patch("remote.util.subprocess.run")
-def test_rsync_respects_all_options(mock_run):
+def test_rsync_respects_all_options(mock_run, rsync_ssh):
     mock_run.return_value = MagicMock(returncode=0)
-    rsync("src/", "dst", info=True, verbose=True, mirror=True, dry_run=True, extra_args=["--some-extra"])
+    rsync("src/", "dst", rsync_ssh, info=True, verbose=True, mirror=True, dry_run=True, extra_args=["--some-extra"])
 
     mock_run.assert_called_once_with(
         [
@@ -79,7 +84,7 @@ def test_rsync_respects_all_options(mock_run):
             "-arlpmchz",
             "--copy-unsafe-links",
             "-e",
-            "ssh -qK -o BatchMode=yes",
+            "ssh -Kq -o BatchMode=yes",
             "--force",
             "-i",
             "-v",
@@ -97,18 +102,18 @@ def test_rsync_respects_all_options(mock_run):
 
 
 @patch("remote.util.subprocess.run")
-def test_rsync_throws_exception_on_bad_return_code(mock_run):
+def test_rsync_throws_exception_on_bad_return_code(mock_run, rsync_ssh):
     mock_run.return_value = MagicMock()
     mock_run.return_value.returncode = 1
 
     with pytest.raises(RemoteConnectionError):
-        rsync("src/", "dst")
+        rsync("src/", "dst", rsync_ssh)
 
 
 @pytest.mark.parametrize("returncode", [0, 1])
 @patch("remote.util.subprocess.run")
 @patch("remote.util._temp_file")
-def test_rsync_always_removes_temporary_files(mock_temp_file, mock_run, returncode, tmp_path):
+def test_rsync_always_removes_temporary_files(mock_temp_file, mock_run, returncode, tmp_path, rsync_ssh):
     mock_run.return_value = MagicMock(returncode=returncode)
 
     files = []
@@ -122,7 +127,7 @@ def test_rsync_always_removes_temporary_files(mock_temp_file, mock_run, returnco
     mock_temp_file.side_effect = ignore_file
 
     try:
-        rsync("src/", "dst", excludes=["f*"], includes=["*.txt"])
+        rsync("src/", "dst", rsync_ssh, excludes=["f*"], includes=["*.txt"])
     except Exception:
         pass
 
@@ -132,20 +137,62 @@ def test_rsync_always_removes_temporary_files(mock_temp_file, mock_run, returnco
 
 
 @pytest.mark.parametrize(
+    "ssh, expected_cmd",
+    [
+        (Ssh("host"), "ssh -tKq -o BatchMode=yes"),
+        (Ssh("host", force_tty=False), "ssh -Kq -o BatchMode=yes"),
+        (Ssh("host", disable_password_auth=False), "ssh -tKq"),
+        (Ssh("host", verbosity_level=VerbosityLevel.DEFAULT), "ssh -tK -o BatchMode=yes"),
+        (
+            Ssh("host", verbosity_level=VerbosityLevel.DEFAULT, local_port_forwarding=ForwardingOptions(1234, 4312)),
+            "ssh -tK -o BatchMode=yes -L 4312:localhost:1234",
+        ),
+        (
+            Ssh(
+                "host",
+                verbosity_level=VerbosityLevel.DEFAULT,
+                local_port_forwarding=ForwardingOptions(1234, 4312, "0.0.0.0"),
+            ),
+            "ssh -tK -o BatchMode=yes -L 4312:0.0.0.0:1234",
+        ),
+        (Ssh("host", verbosity_level=VerbosityLevel.VERBOSE), "ssh -tKv -o BatchMode=yes"),
+        (Ssh("host", verbosity_level=VerbosityLevel.VERBOSE, use_gssapi_auth=False), "ssh -tv -o BatchMode=yes"),
+        (
+            Ssh("host", verbosity_level=VerbosityLevel.DEFAULT, force_tty=False, use_gssapi_auth=False),
+            "ssh -o BatchMode=yes",
+        ),
+        (
+            Ssh(
+                "host",
+                verbosity_level=VerbosityLevel.DEFAULT,
+                force_tty=False,
+                use_gssapi_auth=False,
+                disable_password_auth=False,
+            ),
+            "ssh",
+        ),
+    ],
+)
+def test_ssh_gen_command(ssh, expected_cmd):
+    assert ssh.generate_command_str() == expected_cmd
+
+
+@pytest.mark.parametrize(
     "ports, expected_command_run",
     [
         (None, ["ssh", "-tKq", "-o", "BatchMode=yes", "my-host.example.com", "exit 0"]),
         (
-            (5000, 5005),
+            ForwardingOptions(5000, 5005),
             ["ssh", "-tKq", "-o", "BatchMode=yes", "-L", "5005:localhost:5000", "my-host.example.com", "exit 0"],
         ),
     ],
 )
 @patch("remote.util.subprocess.run")
-def test_ssh(mock_run, ports, expected_command_run):
+def test_ssh_execute(mock_run, ports, expected_command_run):
     mock_run.return_value = MagicMock(returncode=0)
 
-    code = ssh("my-host.example.com", "exit 0", ports=ports)
+    ssh = Ssh("my-host.example.com", local_port_forwarding=ports)
+    code = ssh.execute("exit 0")
 
     assert code == 0
     mock_run.assert_called_once_with(expected_command_run, stdout=ANY, stderr=ANY, stdin=ANY)
@@ -157,7 +204,8 @@ def test_ssh_raises_exception(mock_run, returncode, error):
     mock_run.return_value = MagicMock(returncode=returncode)
 
     with pytest.raises(error):
-        ssh("my-host.example.com", f"exit {returncode}")
+        ssh = Ssh("my-host.example.com")
+        ssh.execute(f"exit {returncode}")
 
     mock_run.assert_called_once_with(
         ["ssh", "-tKq", "-o", "BatchMode=yes", "my-host.example.com", f"exit {returncode}"],
@@ -173,7 +221,8 @@ def test_ssh_returns_error_code_if_configured(mock_run, returncode):
     mock_run.return_value = MagicMock()
     mock_run.return_value.returncode = returncode
 
-    code = ssh("my-host.example.com", f"exit {returncode}", raise_on_error=False)
+    ssh = Ssh("my-host.example.com")
+    code = ssh.execute(f"exit {returncode}", raise_on_error=False)
 
     assert code == returncode
     mock_run.assert_called_once_with(
@@ -186,7 +235,8 @@ def test_ssh_returns_error_code_if_configured(mock_run, returncode):
 
 @patch("remote.util.subprocess.run")
 def test_ssh_no_execute_on_dry_run(mock_run):
-    code = ssh("my-host.example.com", "exit 1", dry_run=True)
+    ssh = Ssh("my-host.example.com")
+    code = ssh.execute("exit 1", dry_run=True)
 
     assert code == 0
     mock_run.assert_not_called()
