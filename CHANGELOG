@@ -1,6 +1,11 @@
+1.4.5
+-----
+* Select host by their label
+* Configure ssh connection options
+
 1.4.4
 -----
-* add the host labeling in toml config files
+* Add the host labeling in toml config files
 
 1.4.3
 -----
