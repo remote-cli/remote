@@ -299,10 +299,12 @@ remote_root = "my-remotes"
 
 [[hosts]]
 host = "test-host.example.com"
+label = "bar"
 
 [[hosts]]
 host = "other-host.example.com"
 default = true
+label = "foo"
 
 [push]
 exclude = ["env", ".git"]
@@ -318,8 +320,8 @@ exclude = ["build"]
             WorkspaceConfig(
                 root=Path("/root/foo/bar"),
                 configurations=[
-                    RemoteConfig(host="test-host.example.com", directory=Path("my-remotes/foo/bar")),
-                    RemoteConfig(host="other-host.example.com", directory=Path("my-remotes/foo/bar")),
+                    RemoteConfig(host="test-host.example.com", directory=Path("my-remotes/foo/bar",), label="bar"),
+                    RemoteConfig(host="other-host.example.com", directory=Path("my-remotes/foo/bar"), label="foo"),
                 ],
                 default_configuration=1,
                 ignores=SyncRules(pull=["src/generated"], push=[".git", "env"], both=["build", ".remote.toml"]),
@@ -335,6 +337,7 @@ use_relative_remote_paths = true
 [[hosts]]
 host = "other-host.example.com"
 default = true
+label = "bar"
 
 [push]
 exclude = ["env", ".git"]
@@ -349,6 +352,7 @@ exclude = ["build"]
             """\
 [[hosts]]
 host = "test-host.example.com"
+label = "foo"
 directory = ".remotes/workspace"
 
 [both]
@@ -357,7 +361,9 @@ include =["env"]
 """,
             WorkspaceConfig(
                 root=Path("/root/foo/bar"),
-                configurations=[RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"))],
+                configurations=[
+                    RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"), label="foo")
+                ],
                 default_configuration=0,
                 ignores=SyncRules(pull=["src/generated"], push=[".git", "env"], both=[".remote.toml"]),
                 includes=SyncRules(pull=[], push=["env"], both=["env"]),
@@ -713,9 +719,12 @@ def test_medium_is_workspace_root(mock_home):
             WorkspaceConfig(
                 root=Path("/root/foo/bar"),
                 configurations=[
-                    RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace")),
+                    RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"), label="foo"),
                     RemoteConfig(
-                        host="other-host.example.com", directory=Path(".remotes/other-workspace"), supports_gssapi=False
+                        host="other-host.example.com",
+                        directory=Path(".remotes/other-workspace"),
+                        supports_gssapi=False,
+                        label="bar",
                     ),
                 ],
                 default_configuration=1,
@@ -726,12 +735,14 @@ def test_medium_is_workspace_root(mock_home):
 [[hosts]]
 host = "test-host.example.com"
 directory = ".remotes/workspace"
+label = "foo"
 supports_gssapi_auth = true
 
 [[hosts]]
 host = "other-host.example.com"
 directory = ".remotes/other-workspace"
 default = true
+label = "bar"
 supports_gssapi_auth = false
 
 [push]

@@ -16,3 +16,7 @@ class ConfigurationError(RemoteError):
 
 class InvalidInputError(RemoteError):
     """Invalid user input is passed from the cli"""
+
+
+class InvalidRemoteHostLabel(RemoteError):
+    """Invalid label is passed to the workspace."""

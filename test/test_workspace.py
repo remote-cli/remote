@@ -4,6 +4,7 @@ from unittest.mock import ANY, MagicMock, call, patch
 import pytest
 
 from remote.configuration import RemoteConfig
+from remote.exceptions import InvalidRemoteHostLabel
 from remote.workspace import SyncedWorkspace
 
 
@@ -29,9 +30,19 @@ def test_create_workspace_selects_proper_remote_host(workspace_config):
     working_dir = workspace_config.root / "foo" / "bar"
     workspace_config.configurations.append(
         RemoteConfig(
-            host="other-host.example.com", directory=Path("other/dir"), shell="bash", shell_options="some options"
+            host="other-host.example.com",
+            directory=Path("other/dir"),
+            shell="bash",
+            shell_options="some options",
+            label="bar",
         )
     )
+    workspace_config.configurations.append(
+        RemoteConfig(
+            host="foo.example.com", directory=Path("other/dir"), shell="bash", shell_options="some options", label="foo"
+        )
+    )
+
     workspace_config.default_configuration = 1
 
     # workspace should select host from workspace_config.default_configuration
@@ -40,13 +51,26 @@ def test_create_workspace_selects_proper_remote_host(workspace_config):
     assert workspace.remote == workspace_config.configurations[1]
     assert workspace.remote_working_dir == workspace_config.configurations[1].directory / "foo" / "bar"
     assert workspace.ignores == workspace_config.ignores
+    assert workspace.remote.label == "bar"
 
-    # now it should select host from overrid
-    workspace = SyncedWorkspace.from_config(workspace_config, working_dir, config_num=0)
+    # now it should select host from override
+    workspace = SyncedWorkspace.from_config(workspace_config, working_dir, remote_host_id=0)
     assert workspace.local_root == workspace_config.root
     assert workspace.remote == workspace_config.configurations[0]
     assert workspace.remote_working_dir == workspace_config.configurations[0].directory / "foo" / "bar"
     assert workspace.ignores == workspace_config.ignores
+
+    # now it should select from the label passed
+    workspace = SyncedWorkspace.from_config(workspace_config, working_dir, remote_host_id="foo")
+    assert workspace.local_root == workspace_config.root
+    assert workspace.remote == workspace_config.configurations[2]
+    assert workspace.remote_working_dir == workspace_config.configurations[2].directory / "foo" / "bar"
+    assert workspace.ignores == workspace_config.ignores
+    assert workspace_config.configurations[2].label == "foo"
+
+    # now it should raise an exception as the label is not present
+    with pytest.raises(InvalidRemoteHostLabel):
+        workspace = SyncedWorkspace.from_config(workspace_config, working_dir, remote_host_id="iamnotpresent")
 
 
 @patch("remote.util.subprocess.run")
