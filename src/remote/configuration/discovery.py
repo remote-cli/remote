@@ -40,7 +40,7 @@ def get_configuration_medium(config: WorkspaceConfig) -> ConfigurationMedium:
             return medium
 
     # If there is no medium found, the config is newly created, so we return a default one
-    return ClassicConfigurationMedium()
+    return TomlConfigurationMedium()
 
 
 def save_config(config: WorkspaceConfig):
