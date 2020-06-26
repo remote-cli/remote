@@ -140,6 +140,7 @@ def test_rsync_always_removes_temporary_files(mock_temp_file, mock_run, returnco
     "ssh, expected_cmd",
     [
         (Ssh("host"), "ssh -tKq -o BatchMode=yes"),
+        (Ssh("host", port=12345, force_tty=False), "ssh -Kq -o BatchMode=yes -p 12345"),
         (Ssh("host", force_tty=False), "ssh -Kq -o BatchMode=yes"),
         (Ssh("host", disable_password_auth=False), "ssh -tKq"),
         (Ssh("host", verbosity_level=VerbosityLevel.DEFAULT), "ssh -tK -o BatchMode=yes"),

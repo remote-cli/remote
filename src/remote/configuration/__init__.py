@@ -20,6 +20,8 @@ class RemoteConfig:
     supports_gssapi: bool = True
     # Add label to identify remote
     label: Optional[str] = None
+    # A SSH port, if it differs from default
+    port: Optional[int] = None
 
 
 @dataclass
@@ -95,9 +97,15 @@ class WorkspaceConfig:
         shell: Optional[str] = None,
         shell_options: Optional[str] = None,
         label: Optional[str] = None,
+        port: Optional[int] = None,
     ) -> Tuple[bool, int]:
         remote_config = RemoteConfig(
-            host=host, directory=directory, shell=shell or "sh", shell_options=shell_options or "", label=label
+            host=host,
+            directory=directory,
+            shell=shell or "sh",
+            shell_options=shell_options or "",
+            label=label,
+            port=port,
         )
         for num, cfg in enumerate(self.configurations):
             if cfg.host == remote_config.host and cfg.directory == remote_config.directory:

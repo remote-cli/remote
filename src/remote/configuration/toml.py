@@ -87,6 +87,7 @@ class ConfigModel(BaseModel):
 
 class ConnectionConfig(ConfigModel):
     host: str
+    port: Optional[int] = Field(default=None, gt=1, le=65535)
     directory: Optional[Path] = None
     default: bool = False
     label: Optional[str] = None
@@ -303,6 +304,7 @@ class TomlConfigurationMedium(ConfigurationMedium):
                     directory=connection.directory or self._generate_remote_directory_from_path(workspace_root),
                     supports_gssapi=connection.supports_gssapi_auth,
                     label=connection.label,
+                    port=connection.port,
                 )
             )
         ignores = SyncRules(
@@ -342,6 +344,7 @@ class TomlConfigurationMedium(ConfigurationMedium):
                     default=num == config.default_configuration,
                     supports_gssapi_auth=connection.supports_gssapi,
                     label=connection.label,
+                    port=connection.port,
                 )
             )
         for key, value in asdict(config.ignores).items():

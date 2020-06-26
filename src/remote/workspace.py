@@ -66,10 +66,10 @@ class SyncedWorkspace:
         )
 
     @classmethod
-    def from_cwd(cls) -> "SyncedWorkspace":
+    def from_cwd(cls, remote_host_id: Optional[Union[str, int]] = None) -> "SyncedWorkspace":
         """Load a workspace from current working directory of user"""
         config = load_cwd_workspace_config()
-        return cls.from_config(config, Path.cwd())
+        return cls.from_config(config, Path.cwd(), remote_host_id)
 
     @classmethod
     def from_cwd_mass(cls) -> List["SyncedWorkspace"]:
@@ -83,7 +83,12 @@ class SyncedWorkspace:
         return workspaces
 
     def get_ssh(self, port_forwarding: Optional[ForwardingOptions] = None):
-        return Ssh(self.remote.host, use_gssapi_auth=self.remote.supports_gssapi, local_port_forwarding=port_forwarding)
+        return Ssh(
+            self.remote.host,
+            port=self.remote.port,
+            use_gssapi_auth=self.remote.supports_gssapi,
+            local_port_forwarding=port_forwarding,
+        )
 
     def get_ssh_for_rsync(self):
         ssh = self.get_ssh()

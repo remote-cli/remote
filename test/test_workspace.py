@@ -213,6 +213,38 @@ echo 'Hello World!'
 
 
 @patch("remote.util.subprocess.run")
+def test_execute_with_custom_port(mock_run, workspace):
+    mock_run.return_value = MagicMock(returncode=0)
+
+    workspace.remote.port = 4321
+    code = workspace.execute(["echo", "Hello World!"], ports=(5005, 5000),)
+    mock_run.assert_called_once_with(
+        [
+            "ssh",
+            "-tKq",
+            "-o",
+            "BatchMode=yes",
+            "-p",
+            "4321",
+            "-L",
+            "5000:localhost:5005",
+            workspace.remote.host,
+            """\
+if [ -f remote/dir/.remoteenv ]; then
+  source remote/dir/.remoteenv 2>/dev/null 1>/dev/null
+fi
+cd remote/dir/foo/bar
+echo 'Hello World!'
+""",
+        ],
+        stderr=ANY,
+        stdin=ANY,
+        stdout=ANY,
+    )
+    assert code == 0
+
+
+@patch("remote.util.subprocess.run")
 def test_execute_and_sync(mock_run, workspace):
     mock_run.side_effect = [MagicMock(returncode=0), MagicMock(returncode=10), MagicMock(returncode=0)]
 
