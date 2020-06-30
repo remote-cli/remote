@@ -490,6 +490,8 @@ directory = "{TEST_DIR}"
                     "--delete",
                     "--rsync-path",
                     "mkdir -p .remotes/myproject && rsync",
+                    "--include-from",
+                    ANY,
                     "--exclude-from",
                     ANY,
                     f"{tmp_path}/",
@@ -505,10 +507,12 @@ directory = "{TEST_DIR}"
                     "-o",
                     "BatchMode=yes",
                     host,
-                    """if [ -f .remotes/myproject/.remoteenv ]; then
-  source .remotes/myproject/.remoteenv 2>/dev/null 1>/dev/null
-fi
+                    """\
 cd .remotes/myproject
+if [ -f .remoteenv ]; then
+  source .remoteenv
+fi
+cd .
 echo test >> .file
 """,
                 ],
