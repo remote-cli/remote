@@ -17,6 +17,8 @@ from .exceptions import RemoteConnectionError, RemoteExecutionError
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_SSH_PORT = 22
+
 
 def _temp_file(lines: List[str]) -> Path:
     """Create a temporary file with provided content and return its path
@@ -68,6 +70,7 @@ class Ssh:
     """Ssh configuration class, pregenrates and executes commands remotely"""
 
     host: str
+    port: Optional[int] = None
     force_tty: bool = True
     verbosity_level: VerbosityLevel = VerbosityLevel.QUIET
     use_gssapi_auth: bool = True
@@ -89,6 +92,8 @@ class Ssh:
             command.append(f"-{options}")
         if self.disable_password_auth:
             command.extend(("-o", "BatchMode=yes"))
+        if self.port and self.port != DEFAULT_SSH_PORT:
+            command.extend(("-p", str(self.port)))
 
         if self.local_port_forwarding:
             command.extend(

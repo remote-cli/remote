@@ -448,6 +448,105 @@ echo test >> .file
     )
 
 
+@pytest.mark.parametrize("label, host", [("usual", "host1"), ("unusual", "host2"), ("2", "host2"), ("3", "host3")])
+@patch("remote.util.subprocess.run")
+def test_remote_labeling_works(mock_run, tmp_path, label, host):
+    mock_run.return_value = Mock(returncode=0)
+    runner = CliRunner()
+    (tmp_path / WORKSPACE_CONFIG).write_text(
+        f"""\
+[[hosts]]
+host = "host1"
+directory = "{TEST_DIR}"
+default = true
+label = "usual"
+
+[[hosts]]
+host = "host2"
+directory = "{TEST_DIR}"
+label = "unusual"
+
+[[hosts]]
+host = "host3"
+directory = "{TEST_DIR}"
+"""
+    )
+
+    with cwd(tmp_path):
+        result = runner.invoke(entrypoints.remote, ["-l", label, "echo test >> .file"])
+
+    assert result.exit_code == 0
+    assert mock_run.call_count == 3
+    mock_run.assert_has_calls(
+        [
+            call(
+                [
+                    "rsync",
+                    "-arlpmchz",
+                    "--copy-unsafe-links",
+                    "-e",
+                    "ssh -Kq -o BatchMode=yes",
+                    "--force",
+                    "--delete",
+                    "--rsync-path",
+                    "mkdir -p .remotes/myproject && rsync",
+                    "--exclude-from",
+                    ANY,
+                    f"{tmp_path}/",
+                    f"{host}:{TEST_DIR}",
+                ],
+                stdout=ANY,
+                stderr=ANY,
+            ),
+            call(
+                [
+                    "ssh",
+                    "-tKq",
+                    "-o",
+                    "BatchMode=yes",
+                    host,
+                    """if [ -f .remotes/myproject/.remoteenv ]; then
+  source .remotes/myproject/.remoteenv 2>/dev/null 1>/dev/null
+fi
+cd .remotes/myproject
+echo test >> .file
+""",
+                ],
+                stdout=ANY,
+                stdin=ANY,
+                stderr=ANY,
+            ),
+            call(
+                [
+                    "rsync",
+                    "-arlpmchz",
+                    "--copy-unsafe-links",
+                    "-e",
+                    "ssh -Kq -o BatchMode=yes",
+                    "--force",
+                    "--exclude-from",
+                    ANY,
+                    f"{host}:{TEST_DIR}/",
+                    f"{tmp_path}",
+                ],
+                stdout=ANY,
+                stderr=ANY,
+            ),
+        ]
+    )
+
+
+@patch("remote.util.subprocess.run")
+def test_remote_fails_on_unknown_option(mock_run, tmp_workspace):
+    runner = CliRunner()
+
+    with cwd(tmp_workspace):
+        result = runner.invoke(entrypoints.remote, ["--unknown-opt", "echo", "test >> .file"])
+
+    assert result.exit_code == 2
+    assert "Error: no such option --unknown-opt" in result.output
+
+
 @patch("remote.util.subprocess.run")
 def test_remote_execution_fail(mock_run, tmp_workspace):
     mock_run.side_effect = [Mock(returncode=0), Mock(returncode=123), Mock(returncode=0)]
@@ -583,6 +682,17 @@ echo test
         stdin=ANY,
         stderr=ANY,
     )
+
+
+@patch("remote.util.subprocess.run")
+def test_remote_quick_fails_on_unknown_option(mock_run, tmp_workspace):
+    runner = CliRunner()
+
+    with cwd(tmp_workspace):
+        result = runner.invoke(entrypoints.remote_quick, ["--unknown-opt", "echo", "test >> .file"])
+
+    assert result.exit_code == 2
+    assert "Error: no such option --unknown-opt" in result.output
 
 
 @patch("remote.util.subprocess.run")

@@ -566,6 +566,7 @@ def test_medium_load_config_picks_up_vsc_ignore_files(mock_home):
     text = """
 [[hosts]]
 host = "test-host.example.com"
+port = 2022
 directory = ".remotes/workspace"
 default = true
 
@@ -607,7 +608,7 @@ pattern_two
 
     assert config == WorkspaceConfig(
         root=Path("/root/foo/bar"),
-        configurations=[RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"))],
+        configurations=[RemoteConfig(host="test-host.example.com", directory=Path(".remotes/workspace"), port=2022)],
         default_configuration=0,
         ignores=SyncRules(
             pull=["*.pattern", "pattern_two"],

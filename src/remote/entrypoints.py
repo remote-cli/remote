@@ -4,7 +4,7 @@ import sys
 
 from functools import wraps
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import click
 
@@ -48,6 +48,30 @@ def validate_connection_string(ctx, param, value):
             "Please fix value to match the specified format for connection string", ctx=ctx, param=param
         )
     return value
+
+
+def int_or_str_label(label: Optional[str]) -> Optional[Union[int, str]]:
+    """Try to convert the label to int and return the result, if it's not successful, return the label"""
+    if label is None:
+        return None
+    try:
+        # Users enter indexes starting with 1 and internally we use indexes starting with 0
+        return int(label) - 1
+    except ValueError:
+        return label
+
+
+def check_command(command: List[str]):
+    if command and command[0].startswith("-"):
+        # Our execution entry points use ignore_unknown_options=True and allow_interspersed_args=False
+        # to be able to stream the command to the remote machine. However, there is a downside.
+        # If user runs this command with an unknown option, this option will become a part of the command.
+        # That's why we need to manually check if the command starts with an unknown option and print an
+        # error message in this case.
+        ctx = click.get_current_context()
+        click.echo(ctx.get_usage())
+        click.echo(f"Try '{ctx.info_name} -h' for help\n\nError: no such option {command[0]}")
+        sys.exit(2)
 
 
 def _add_remote_host(config: WorkspaceConfig, connection: str):
@@ -190,11 +214,21 @@ def remote_set(index: int):
     help="Enable local port forwarding. Pass value as <remote port>:<local port>. \
 If local port is not passed, the local port value would be set to <remote port> value by default",
 )
+@click.option("-l", "--label", help="use the host that has corresponding label for the remote execution")
 @click.argument("command", nargs=-1, required=True)
 @log_exceptions
-def remote(command: List[str], dry_run: bool, mirror: bool, verbose: bool, e: bool, port_args: Optional[str]):
+def remote(
+    command: List[str],
+    dry_run: bool,
+    mirror: bool,
+    verbose: bool,
+    e: bool,
+    port_args: Optional[str],
+    label: Optional[str],
+):
     """Sync local workspace files to remote machine, execute the COMMAND and sync files back regardless of the result"""
 
+    check_command(command)
     if verbose:
         logging.basicConfig(level=logging.INFO, format=BASE_LOGGING_FORMAT)
 
@@ -205,7 +239,7 @@ def remote(command: List[str], dry_run: bool, mirror: bool, verbose: bool, e: bo
         click.secho(str(ex), fg="yellow")
         sys.exit(1)
 
-    workspace = SyncedWorkspace.from_cwd()
+    workspace = SyncedWorkspace.from_cwd(int_or_str_label(label))
     exit_code = workspace.execute_in_synced_env(command, dry_run=dry_run, verbose=verbose, mirror=mirror, ports=ports,)
     if exit_code != 0:
         click.secho(f"Remote command exited with {exit_code}", fg="yellow")
@@ -214,11 +248,14 @@ def remote(command: List[str], dry_run: bool, mirror: bool, verbose: bool, e: bo
 
 
 @click.command(context_settings=EXECUTION_CONTEXT_SETTINGS)
+@click.option("-l", "--label", help="use the host that has corresponding label for the remote execution")
 @click.argument("command", nargs=-1, required=True)
 @log_exceptions
-def remote_quick(command: List[str]):
+def remote_quick(command: List[str], label: Optional[str]):
     """Execute the COMMAND remotely"""
-    workspace = SyncedWorkspace.from_cwd()
+    check_command(command)
+
+    workspace = SyncedWorkspace.from_cwd(int_or_str_label(label))
     code = workspace.execute(command, raise_on_error=False)
     sys.exit(code)
 
@@ -226,9 +263,10 @@ def remote_quick(command: List[str]):
 @click.command(context_settings=DEFAULT_CONTEXT_SETTINGS)
 @click.option("-n", "--dry-run", is_flag=True, help="do a dry run of a pull")
 @click.option("-v", "--verbose", is_flag=True, help="increase verbosity")
+@click.option("-l", "--label", help="use the host that has corresponding label for the remote execution")
 @click.argument("path", nargs=-1)
 @log_exceptions
-def remote_pull(dry_run: bool, verbose: bool, path: List[str]):
+def remote_pull(dry_run: bool, verbose: bool, path: List[str], label: Optional[str]):
     """Bring in files from the default remote directory to local workspace.
     Optionally bring in PATH instead of the whole workspace.
 
@@ -239,7 +277,7 @@ def remote_pull(dry_run: bool, verbose: bool, path: List[str]):
     if verbose:
         logging.basicConfig(level=logging.INFO, format=BASE_LOGGING_FORMAT)
 
-    workspace = SyncedWorkspace.from_cwd()
+    workspace = SyncedWorkspace.from_cwd(int_or_str_label(label))
     if not path:
         workspace.pull(info=True, verbose=verbose, dry_run=dry_run)
         return
@@ -252,26 +290,28 @@ def remote_pull(dry_run: bool, verbose: bool, path: List[str]):
 @click.option("-n", "--dry-run", is_flag=True, help="do a dry run of a push")
 @click.option("-m", "--mirror", is_flag=True, help="mirror local files on the remote host")
 @click.option("-v", "--verbose", is_flag=True, help="increase verbosity")
+@click.option("-l", "--label", help="use the host that has corresponding label for the remote execution")
 @click.option(
     "--mass", is_flag=True, help="push files to all available remote workspaces instead of pushing to the default one"
 )
 @log_exceptions
-def remote_push(dry_run: bool, mirror: bool, verbose: bool, mass: bool):
+def remote_push(dry_run: bool, mirror: bool, verbose: bool, mass: bool, label: Optional[str]):
     """Push local workspace files to the remote directory"""
 
     if verbose:
         logging.basicConfig(level=logging.INFO, format=BASE_LOGGING_FORMAT)
 
-    workspaces = SyncedWorkspace.from_cwd_mass() if mass else [SyncedWorkspace.from_cwd()]
+    workspaces = SyncedWorkspace.from_cwd_mass() if mass else [SyncedWorkspace.from_cwd(int_or_str_label(label))]
     for workspace in workspaces:
         workspace.push(info=True, verbose=verbose, dry_run=dry_run, mirror=mirror)
 
 
 @click.command(context_settings=DEFAULT_CONTEXT_SETTINGS)
+@click.option("-l", "--label", help="use the host that has corresponding label for the remote execution")
 @log_exceptions
-def remote_delete():
+def remote_delete(label: Optional[str]):
     """Delete the remote directory"""
-    workspace = SyncedWorkspace.from_cwd()
+    workspace = SyncedWorkspace.from_cwd(int_or_str_label(label))
     workspace.clear_remote()
     click.echo(f"Successfully deleted {workspace.remote.directory} on host {workspace.remote.host}")
 
