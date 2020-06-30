@@ -104,6 +104,8 @@ def test_push(mock_run, workspace):
             "--delete",
             "--rsync-path",
             "mkdir -p remote/dir && rsync",
+            "--include-from",
+            ANY,
             f"{workspace.local_root}/",
             f"{workspace.remote.host}:{workspace.remote.directory}",
         ],
@@ -169,10 +171,11 @@ def test_execute(mock_run, workspace):
             "BatchMode=yes",
             workspace.remote.host,
             """\
-if [ -f remote/dir/.remoteenv ]; then
-  source remote/dir/.remoteenv 2>/dev/null 1>/dev/null
+cd remote/dir
+if [ -f .remoteenv ]; then
+  source .remoteenv
 fi
-cd remote/dir/foo/bar
+cd foo/bar
 echo 'Hello World!'
 """,
         ],
@@ -198,10 +201,11 @@ def test_execute_with_port_forwarding(mock_run, workspace):
             "5000:localhost:5005",
             workspace.remote.host,
             """\
-if [ -f remote/dir/.remoteenv ]; then
-  source remote/dir/.remoteenv 2>/dev/null 1>/dev/null
+cd remote/dir
+if [ -f .remoteenv ]; then
+  source .remoteenv
 fi
-cd remote/dir/foo/bar
+cd foo/bar
 echo 'Hello World!'
 """,
         ],
@@ -230,6 +234,8 @@ def test_execute_and_sync(mock_run, workspace):
                     "--delete",
                     "--rsync-path",
                     "mkdir -p remote/dir && rsync",
+                    "--include-from",
+                    ANY,
                     f"{workspace.local_root}/",
                     f"{workspace.remote.host}:{workspace.remote.directory}",
                 ],
@@ -244,10 +250,11 @@ def test_execute_and_sync(mock_run, workspace):
                     "BatchMode=yes",
                     workspace.remote.host,
                     """\
-if [ -f remote/dir/.remoteenv ]; then
-  source remote/dir/.remoteenv 2>/dev/null 1>/dev/null
+cd remote/dir
+if [ -f .remoteenv ]; then
+  source .remoteenv
 fi
-cd remote/dir/foo/bar
+cd foo/bar
 echo 'Hello World!'
 """,
                 ],
@@ -294,6 +301,8 @@ def test_execute_and_sync_with_port_forwarding(mock_run, workspace):
                     "--delete",
                     "--rsync-path",
                     "mkdir -p remote/dir && rsync",
+                    "--include-from",
+                    ANY,
                     f"{workspace.local_root}/",
                     f"{workspace.remote.host}:{workspace.remote.directory}",
                 ],
@@ -310,10 +319,11 @@ def test_execute_and_sync_with_port_forwarding(mock_run, workspace):
                     "5000:localhost:5005",
                     workspace.remote.host,
                     """\
-if [ -f remote/dir/.remoteenv ]; then
-  source remote/dir/.remoteenv 2>/dev/null 1>/dev/null
+cd remote/dir
+if [ -f .remoteenv ]; then
+  source .remoteenv
 fi
-cd remote/dir/foo/bar
+cd foo/bar
 echo 'Hello World!'
 """,
                 ],

@@ -1,65 +1,7 @@
 """
 This module contains the medium for toml-based config that consists of global and local parts.
 
-The global config is located in ~/.config/remote/defaults.toml and contains some machine-specific
-connection settings that will be used by all workspaces if their own config doesn't overwrite it
-
-    [general]
-    no-config-workspaces = true
-    remote-root = ".remotes"
-
-    [[hosts]]
-    host = "test-host.example.com"
-    directory = ".remotes/workspace"
-    default = true
-
-    [push]
-    # list of exclude patterns in rsync exclude syntax
-    # describes the files and directories that we should exclude from pushing to remote host before execution
-    exclude = ["env", ".git"]
-
-    [pull]
-    # list of exclude patterns in rsync exclude syntax
-    # describes the files and directories that we should exclude from
-    # pulling to local machine from remote host after execution
-    exclude = ["src/generated"]
-
-    [both]
-    # list of exclude patterns in rsync exclude syntax
-    # describes the files and directories that we should exclude from moving in both directions
-    exclude = ["build"]
-
-The workspace config is located in .remote.toml file and contains workspace-specific settings that can overwrite or
-extend global ones:
-
-    [[hosts]]
-    host = "test-host.example.com"
-    directory = ".remotes/workspace"
-
-    [[hosts]]
-    host = "other-host.example.com"
-    directory = ".remotes/other-workspace"
-    default = true
-
-    [push]
-    exclude = ["env", ".git"]
-
-    [pull]
-    exclude = ["src/generated"]
-
-    [both]
-    exclude = ["build"]
-
-Instead of overwriting values, the workspace config can extend some values
-
-    [[extends.hosts]]
-    host = "other-host.example.com"
-    directory = ".remotes/other-workspace"
-    default = true
-
-    [extends.push]
-    exclude = ["workspace-specific-dir"]
-
+See the README.md file for details
 """
 import re
 

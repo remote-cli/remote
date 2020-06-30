@@ -6,7 +6,7 @@ Some of the test above don't verify much, but they at least ensure that all part
 import os
 
 from contextlib import contextmanager
-from unittest.mock import ANY, Mock, call, patch
+from unittest.mock import ANY, MagicMock, Mock, call, patch
 
 import pytest
 
@@ -15,6 +15,7 @@ from click.testing import CliRunner
 
 from remote import entrypoints
 from remote.configuration.classic import CONFIG_FILE_NAME, IGNORE_FILE_NAME, INDEX_FILE_NAME
+from remote.configuration.toml import WORKSPACE_CONFIG
 from remote.exceptions import RemoteExecutionError
 
 TEST_HOST = "test-host1.example.com"
@@ -93,6 +94,10 @@ def test_validate_connection_string(connection, is_valid):
 
 
 @patch("remote.util.subprocess.run")
+@patch(
+    "remote.configuration.toml.TomlConfigurationMedium.generate_remote_directory",
+    MagicMock(return_value=".remotes/myproject_foo"),
+)
 def test_remote_init(mock_run, tmp_path):
     mock_run.return_value = Mock(returncode=0)
     subdir = tmp_path / "myproject"
@@ -103,25 +108,34 @@ def test_remote_init(mock_run, tmp_path):
         result = runner.invoke(entrypoints.remote_init, ["test-host.example.com"])
 
     assert result.exit_code == 0
-    assert "Created remote directory at test-host.example.com:.remotes/myproject_" in result.output
+    assert "Created remote directory at test-host.example.com:.remotes/myproject_foo" in result.output
     assert "Remote is configured and ready to use" in result.output
 
     mock_run.assert_called_once_with(
         ["ssh", "-tKq", "-o", "BatchMode=yes", "test-host.example.com", ANY], stdin=ANY, stdout=ANY, stderr=ANY
     )
 
-    assert (subdir / CONFIG_FILE_NAME).exists()
-    assert (subdir / CONFIG_FILE_NAME).read_text().startswith("test-host.example.com:.remotes/myproject_")
-    assert (subdir / IGNORE_FILE_NAME).exists()
+    assert (subdir / WORKSPACE_CONFIG).exists()
     assert (
-        (subdir / IGNORE_FILE_NAME).read_text()
+        (subdir / WORKSPACE_CONFIG).read_text()
         == """\
-pull:
-push:
-both:
-.remote
-.remoteignore
-.remoteindex
+[[hosts]]
+host = "test-host.example.com"
+directory = ".remotes/myproject_foo"
+default = true
+supports_gssapi_auth = true
+
+[push]
+exclude = []
+include = []
+
+[pull]
+exclude = []
+include = []
+
+[both]
+exclude = [ ".remote.toml",]
+include = []
 """
     )
 
@@ -152,18 +166,27 @@ Remote is configured and ready to use
         stderr=ANY,
     )
 
-    assert (subdir / CONFIG_FILE_NAME).exists()
-    assert (subdir / CONFIG_FILE_NAME).read_text() == "test-host.example.com:.path/test.dir/_test-dir\n"
-    assert (subdir / IGNORE_FILE_NAME).exists()
+    assert (subdir / WORKSPACE_CONFIG).exists()
     assert (
-        (subdir / IGNORE_FILE_NAME).read_text()
+        (subdir / WORKSPACE_CONFIG).read_text()
         == """\
-pull:
-push:
-both:
-.remote
-.remoteignore
-.remoteindex
+[[hosts]]
+host = "test-host.example.com"
+directory = ".path/test.dir/_test-dir"
+default = true
+supports_gssapi_auth = true
+
+[push]
+exclude = []
+include = []
+
+[pull]
+exclude = []
+include = []
+
+[both]
+exclude = [ ".remote.toml",]
+include = []
 """
     )
 
@@ -187,8 +210,7 @@ Please check if host is accessible via SSH
 """
     )
 
-    assert not (subdir / CONFIG_FILE_NAME).exists()
-    assert not (subdir / IGNORE_FILE_NAME).exists()
+    assert not (subdir / WORKSPACE_CONFIG).exists()
 
 
 def test_remote_init_fails_if_workspace_is_already_initated(tmp_workspace):
@@ -216,7 +238,8 @@ def test_remote_init_fails_on_input_validation(tmp_path):
         result = runner.invoke(entrypoints.remote_init, ["host:path:path"])
 
     assert result.exit_code == 2
-    assert not (tmp_path / CONFIG_FILE_NAME).exists()
+
+    assert not (tmp_path / WORKSPACE_CONFIG).exists()
 
 
 def test_remote_commands_fail_on_no_workspace(tmp_path):
@@ -375,6 +398,8 @@ def test_remote(mock_run, tmp_workspace):
                     "--delete",
                     "--rsync-path",
                     "mkdir -p .remotes/myproject && rsync",
+                    "--include-from",
+                    ANY,
                     "--exclude-from",
                     ANY,
                     f"{tmp_workspace}/",
@@ -390,10 +415,12 @@ def test_remote(mock_run, tmp_workspace):
                     "-o",
                     "BatchMode=yes",
                     TEST_HOST,
-                    """if [ -f .remotes/myproject/.remoteenv ]; then
-  source .remotes/myproject/.remoteenv 2>/dev/null 1>/dev/null
-fi
+                    """\
 cd .remotes/myproject
+if [ -f .remoteenv ]; then
+  source .remoteenv
+fi
+cd .
 echo test >> .file
 """,
                 ],
@@ -444,6 +471,8 @@ def test_remote_execution_fail(mock_run, tmp_workspace):
                     "--delete",
                     "--rsync-path",
                     "mkdir -p .remotes/myproject && rsync",
+                    "--include-from",
+                    ANY,
                     "--exclude-from",
                     ANY,
                     f"{tmp_workspace}/",
@@ -459,10 +488,12 @@ def test_remote_execution_fail(mock_run, tmp_workspace):
                     "-o",
                     "BatchMode=yes",
                     TEST_HOST,
-                    """if [ -f .remotes/myproject/.remoteenv ]; then
-  source .remotes/myproject/.remoteenv 2>/dev/null 1>/dev/null
-fi
+                    """\
 cd .remotes/myproject
+if [ -f .remoteenv ]; then
+  source .remoteenv
+fi
+cd .
 echo 'test >> .file'
 """,
                 ],
@@ -511,6 +542,8 @@ def test_remote_sync_fail(mock_run, tmp_workspace):
             "--delete",
             "--rsync-path",
             "mkdir -p .remotes/myproject && rsync",
+            "--include-from",
+            ANY,
             "--exclude-from",
             ANY,
             f"{tmp_workspace}/",
@@ -537,10 +570,12 @@ def test_remote_quick(mock_run, tmp_workspace):
             "-o",
             "BatchMode=yes",
             TEST_HOST,
-            """if [ -f .remotes/myproject/.remoteenv ]; then
-  source .remotes/myproject/.remoteenv 2>/dev/null 1>/dev/null
-fi
+            """\
 cd .remotes/myproject
+if [ -f .remoteenv ]; then
+  source .remoteenv
+fi
+cd .
 echo test
 """,
         ],
@@ -566,10 +601,12 @@ def test_remote_quick_execution_fail(mock_run, tmp_workspace):
             "-o",
             "BatchMode=yes",
             TEST_HOST,
-            """if [ -f .remotes/myproject/.remoteenv ]; then
-  source .remotes/myproject/.remoteenv 2>/dev/null 1>/dev/null
-fi
+            """\
 cd .remotes/myproject
+if [ -f .remoteenv ]; then
+  source .remoteenv
+fi
+cd .
 echo test
 """,
         ],
@@ -600,6 +637,8 @@ def test_remote_push(mock_run, tmp_workspace):
             "--delete",
             "--rsync-path",
             "mkdir -p .remotes/myproject && rsync",
+            "--include-from",
+            ANY,
             "--exclude-from",
             ANY,
             f"{tmp_workspace}/",
@@ -636,6 +675,8 @@ def test_remote_push_mass(mock_run, tmp_workspace):
                     "--delete",
                     "--rsync-path",
                     "mkdir -p .remotes/myproject && rsync",
+                    "--include-from",
+                    ANY,
                     "--exclude-from",
                     ANY,
                     f"{tmp_workspace}/",
@@ -656,6 +697,8 @@ def test_remote_push_mass(mock_run, tmp_workspace):
                     "--delete",
                     "--rsync-path",
                     "mkdir -p other-directory && rsync",
+                    "--include-from",
+                    ANY,
                     "--exclude-from",
                     ANY,
                     f"{tmp_workspace}/",
@@ -799,10 +842,12 @@ def test_remote_port_forwarding_successful(
                 "-L",
                 expected_port_forwarding,
                 "test-host1.example.com",
-                """if [ -f .remotes/myproject/.remoteenv ]; then
-  source .remotes/myproject/.remoteenv 2>/dev/null 1>/dev/null
-fi
+                """\
 cd .remotes/myproject
+if [ -f .remoteenv ]; then
+  source .remoteenv
+fi
+cd .
 echo test
 """,
             ],

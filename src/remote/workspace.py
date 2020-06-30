@@ -90,11 +90,13 @@ class SyncedWorkspace:
         return replace(ssh, force_tty=False)
 
     def _generate_command(self, command: str) -> str:
+        relative_path = self.remote_working_dir.relative_to(self.remote.directory)
         return f"""\
-if [ -f {self.remote.directory}/.remoteenv ]; then
-  source {self.remote.directory}/.remoteenv 2>/dev/null 1>/dev/null
+cd {self.remote.directory}
+if [ -f .remoteenv ]; then
+  source .remoteenv
 fi
-cd {self.remote_working_dir}
+cd {relative_path}
 {command}
 """
 
@@ -170,6 +172,7 @@ cd {self.remote_working_dir}
         dst = f"{self.remote.host}:{self.remote.directory}"
         ignores = self.ignores.compile_push()
         includes = self.includes.compile_push()
+        includes.append("/.remoteenv")
         # If remote directory structure is deep and it was deleted, we need an rsync-path to recreate it before copying
         extra_args = ["--rsync-path", f"mkdir -p {self.remote.directory} && rsync"]
         rsync(
