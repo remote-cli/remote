@@ -256,10 +256,11 @@ def test_execute_with_custom_port(mock_run, workspace):
             "5000:localhost:5005",
             workspace.remote.host,
             """\
-if [ -f remote/dir/.remoteenv ]; then
-  source remote/dir/.remoteenv 2>/dev/null 1>/dev/null
+cd remote/dir
+if [ -f .remoteenv ]; then
+  source .remoteenv
 fi
-cd remote/dir/foo/bar
+cd foo/bar
 echo 'Hello World!'
 """,
         ],
