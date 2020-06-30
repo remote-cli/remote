@@ -1,3 +1,10 @@
+1.5.0
+-----
+* use TOML configs by default
+* new CLI option to select a host by label/index
+* new config option to provide custom port for SSH
+* .remoteevn usage fixes
+
 1.4.5
 -----
 * Select host by their label
