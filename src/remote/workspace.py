@@ -204,8 +204,9 @@ cd {relative_path}
                         even if it is ignored by workspace rules
         """
         if subpath is not None:
-            src = f"{self.remote.host}:{self.remote.directory}/{subpath}"
-            dst_path = self.local_root / subpath.parent
+            src = f"{self.remote.host}:{self.remote_working_dir}/{subpath}"
+            local_subpath = self.remote_working_dir.relative_to(self.remote.directory) / subpath
+            dst_path = self.local_root / local_subpath.parent
             dst_path.mkdir(parents=True, exist_ok=True)
             dst = f"{dst_path}/"
 

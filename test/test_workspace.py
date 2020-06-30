@@ -150,6 +150,28 @@ def test_pull_with_subdir(mock_run, workspace):
             "-e",
             "ssh -Kq -o BatchMode=yes",
             "--force",
+            f"{workspace.remote.host}:{workspace.remote.directory}/foo/bar/some-path",
+            f"{workspace.local_root}/foo/bar/",
+        ],
+        stderr=ANY,
+        stdout=ANY,
+    )
+
+
+@patch("remote.util.subprocess.run")
+def test_pull_with_subdir_exec_from_root(mock_run, workspace):
+    workspace.remote_working_dir = workspace.remote.directory
+    mock_run.return_value = MagicMock(returncode=0)
+
+    workspace.pull(subpath=Path("some-path"))
+    mock_run.assert_called_once_with(
+        [
+            "rsync",
+            "-arlpmchz",
+            "--copy-unsafe-links",
+            "-e",
+            "ssh -Kq -o BatchMode=yes",
+            "--force",
             f"{workspace.remote.host}:{workspace.remote.directory}/some-path",
             f"{workspace.local_root}/",
         ],
