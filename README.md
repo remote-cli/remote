@@ -5,12 +5,13 @@
 [![versions](https://img.shields.io/pypi/pyversions/remote-exec.svg)](https://github.com/remote-cli/remote)
 [![license](https://img.shields.io/github/license/remote-cli/remote.svg)](https://github.com/remote-cli/remote/blob/master/LICENSE)
 
-The `remote` CLI lets you execute long or computation-heavy tasks (e.g., compilation)
-on a powerful remote host while you are working on the source code locally.
-This process is known as a remote execution or remote build.
+The `remote` CLI lets you execute long or computation-heavy tasks (e.g. compilation, integration tests etc.)
+on a powerful remote host while you work on the source code locally.
+This process is known as remote execution and can be used to enable remote build capabilities among other things.
 
-After you execute `remote`, it will sync your local workspace to the remote host you selected with `rsync`.
-It will then execute the command on this host using `ssh` and bring all the created/modified files back.
+When you execute `remote <cmd>`, it will first sync your local workspace to the remote host you selected using `rsync`.
+It will then execute the command `<cmd>` on this host using `ssh` and finally, bring all the created/modified files back to your local workspace. 
+`remote` supports a host of configuration options to allow for complete customization of patterns for files and folders to include during the synchronization process in both directions. 
 
 ## System Requirements
 
@@ -18,7 +19,7 @@ The CLI supports **Linux** and **Mac OS X** operating systems
 with **Python 3.6 or higher** installed. You can also use it on **Windows**
 if you have [WSL](https://docs.microsoft.com/en-us/windows/wsl/about) configured.
 
-The remote host should also be working on **Linux** or **Mac OS X**.
+The remote host must also be running on **Linux** or **Mac OS X**. The local and remote hosts can be running different operating systems. The only requirement is that the remote host must be accessible using `ssh` from the local host. 
 
 ## Getting Started
 
