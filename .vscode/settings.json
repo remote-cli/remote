@@ -42,7 +42,6 @@
         "**/.*_cache": true,
         ".*_cache": true,
         ".git": true,
-        ".remote*": true,
         ".coverage*": true
     }
 }
