@@ -5,12 +5,11 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
-from remote.exceptions import InvalidRemoteHostLabel
-
 from .configuration import RemoteConfig, SyncRules, WorkspaceConfig
 from .configuration.discovery import load_cwd_workspace_config
+from .exceptions import InvalidRemoteHostLabel
 from .file_changes import execute_on_file_change
-from .util import ForwardingOptions, Ssh, prepare_shell_command, rsync
+from .util import ForwardingOptions, Ssh, VerbosityLevel, prepare_shell_command, rsync
 
 logger = logging.getLogger(__name__)
 
@@ -84,12 +83,13 @@ class SyncedWorkspace:
 
         return workspaces
 
-    def get_ssh(self, port_forwarding: Optional[ForwardingOptions] = None):
+    def get_ssh(self, port_forwarding: Optional[ForwardingOptions] = None, verbose: bool = False):
         return Ssh(
             self.remote.host,
             port=self.remote.port,
             use_gssapi_auth=self.remote.supports_gssapi,
             local_port_forwarding=port_forwarding,
+            verbosity_level=VerbosityLevel.VERBOSE if verbose else VerbosityLevel.QUIET,
         )
 
     def get_ssh_for_rsync(self):
@@ -149,6 +149,7 @@ cd {relative_path}
         simple: bool = False,
         dry_run: bool = False,
         raise_on_error: bool = True,
+        verbose: bool = False,
         ports: Optional[Tuple[int, int]] = None,
         stream_changes: bool = False,
     ) -> int:
@@ -161,6 +162,7 @@ cd {relative_path}
         :param raise_on_error: raise exception if error code was other than 0.
         :param ports: A tuple of remote port, local port to enable local port forwarding
         :param stream_changes: Resync local changes if any while the command is being run remotely
+        :param verbose: use verbose logging when running ssh
 
         :returns: an exit code of a remote process
         """
@@ -169,14 +171,21 @@ cd {relative_path}
             formatted_command = self._generate_command(formatted_command)
 
         port_forwarding = ForwardingOptions(remote_port=ports[0], local_port=ports[1]) if ports else None
-        ssh = self.get_ssh(port_forwarding)
+        ssh = self.get_ssh(port_forwarding, verbose)
 
         with execute_on_file_change(
             local_root=self.local_root, callback=self.push, settle_time=1
         ) if stream_changes else contextlib.suppress():
             return ssh.execute(formatted_command, dry_run, raise_on_error)
 
-    def push(self, info: bool = False, verbose: bool = False, dry_run: bool = False, mirror: bool = False) -> None:
+    def push(
+        self,
+        info: bool = False,
+        verbose: bool = False,
+        dry_run: bool = False,
+        mirror: bool = False,
+        subpath: Union[Path, str] = None,
+    ) -> None:
         """Push local workspace files to remote directory
 
         :param info: use info logging when running rsync
@@ -185,6 +194,14 @@ cd {relative_path}
         :param mirror: mirror local files remotely. It will remove ALL the remote files in the directory
                        that weren't synced from local workspace
         """
+        if subpath is not None:
+            src = str(self.local_root / self.remote_working_dir.relative_to(self.remote.directory) / subpath)
+            dst_path = self.remote_working_dir / subpath
+            dst = f"{self.remote.host}:{dst_path.parent}/"
+
+            rsync(src, dst, self.get_ssh_for_rsync(), info=info, verbose=verbose, dry_run=dry_run, delete=True)
+            return
+
         src = f"{self.local_root}/"
         dst = f"{self.remote.host}:{self.remote.directory}"
         ignores = self.ignores.compile_push()
@@ -206,7 +223,9 @@ cd {relative_path}
             extra_args=extra_args,
         )
 
-    def pull(self, info: bool = False, verbose: bool = False, dry_run: bool = False, subpath: Path = None) -> None:
+    def pull(
+        self, info: bool = False, verbose: bool = False, dry_run: bool = False, subpath: Union[Path, str] = None
+    ) -> None:
         """Pull remote files to local workspace
 
         :param info: use info logging when running rsync

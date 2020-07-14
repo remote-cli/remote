@@ -6,7 +6,7 @@ import tempfile
 import time
 
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from enum import IntEnum
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple, Union
@@ -238,3 +238,24 @@ def parse_ports(port_args: Optional[str]) -> Optional[Tuple[int, int]]:
         return (int(ports[0]), int(ports[1]))
     except ValueError as e:
         raise InvalidInputError("Please pass valid integer value for ports") from e
+
+
+def pformat_dataclass(obj, indent="  "):
+    """Return a string with an object contents prettified"""
+    result = []
+
+    has_dataclass_fields = False
+    for field in fields(obj):
+        value = getattr(obj, field.name)
+        if is_dataclass(value):
+            str_value = "\n" + pformat_dataclass(value, indent + "  ")
+            has_dataclass_fields = True
+        else:
+            str_value = str(value)
+        result.append((field.name, str_value))
+
+    if has_dataclass_fields:
+        return "\n".join(f"{indent}- {name}: {value}" for name, value in result)
+    else:
+        width = max(len(name) for name, _ in result)
+        return "\n".join(f"{indent}- {name: <{width}}: {value}" for name, value in result)

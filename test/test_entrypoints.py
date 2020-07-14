@@ -192,6 +192,37 @@ include = []
 
 
 @patch("remote.util.subprocess.run")
+def test_remote_init_gitignore(mock_run, tmp_path):
+    mock_run.return_value = Mock(returncode=0)
+    subdir = tmp_path / "myproject"
+    subdir.mkdir()
+    (subdir / ".git").mkdir()
+
+    runner = CliRunner()
+    with cwd(subdir):
+        result = runner.invoke(entrypoints.remote_init, ["test-host.example.com:.path/test.dir/_test-dir/"])
+
+    assert result.exit_code == 0
+    assert ".remote*" in (subdir / ".gitignore").read_text()
+
+
+@patch("remote.util.subprocess.run")
+def test_remote_init_gitignore_no_double_writing(mock_run, tmp_path):
+    mock_run.return_value = Mock(returncode=0)
+    subdir = tmp_path / "myproject"
+    subdir.mkdir()
+    (subdir / ".git").mkdir()
+    (subdir / ".gitignore").write_text("some\nbuild\n.remote*\n.gradle\n")
+
+    runner = CliRunner()
+    with cwd(subdir):
+        result = runner.invoke(entrypoints.remote_init, ["test-host.example.com:.path/test.dir/_test-dir/"])
+
+    assert result.exit_code == 0
+    assert "some\nbuild\n.remote*\n.gradle\n" == (subdir / ".gitignore").read_text()
+
+
+@patch("remote.util.subprocess.run")
 def test_remote_init_fails_after_ssh_error(mock_run, tmp_path):
     mock_run.return_value = Mock(returncode=255)
     subdir = tmp_path / "myproject"
@@ -979,3 +1010,31 @@ def test_stream_changes(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote, ["--stream-changes", "echo test"])
         assert result.exit_code == 0
+
+
+@patch("remote.explain.subprocess.run")
+@patch("remote.util.subprocess.run")
+def test_remote_explain(util_run, explain_run, tmp_workspace):
+    # This is jsut a smoke test to check that remote-explain doesn't throw any exceptions
+    # It is pretty hard to unit-test it correctly
+    util_run.return_value = Mock(returncode=0)
+    explain_run.return_value = Mock(
+        returncode=0,
+        stdout="""\
+PING some-host.example.com (1.1.1.1): 56 data bytes
+64 bytes from 1.1.1.1: icmp_seq=0 ttl=59 time=25.608 ms
+64 bytes from 1.1.1.1: icmp_seq=1 ttl=59 time=15.121 ms
+64 bytes from 1.1.1.1: icmp_seq=2 ttl=59 time=15.735 ms
+
+--- some-host.example.com ping statistics ---
+3 packets transmitted, 3 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = 15.121/18.821/25.608/4.805 ms
+""",
+    )
+    runner = CliRunner()
+    with cwd(tmp_workspace):
+        result = runner.invoke(entrypoints.remote_explain, ["--deep"])
+
+    explain_run.assert_has_calls([call(["ping", "-c", "10", "test-host1.example.com"], capture_output=True, text=True)])
+    explain_run.assert_has_calls([call(["ping", "-c", "1", "test-host1.example.com"], capture_output=True, text=True)])
+    assert result.exit_code == 0
