@@ -1,8 +1,16 @@
+import contextlib
 import logging
+import threading
+import time
 
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
+from threading import Event, Thread
 from typing import List, Optional, Tuple, Union
+
+from watchdog.events import FileSystemEvent, PatternMatchingEventHandler
+from watchdog.observers import Observer
 
 from remote.exceptions import InvalidRemoteHostLabel
 
@@ -11,6 +19,20 @@ from .configuration.discovery import load_cwd_workspace_config
 from .util import ForwardingOptions, Ssh, prepare_shell_command, rsync
 
 logger = logging.getLogger(__name__)
+
+
+class SyncedWorkSpaceHandler(PatternMatchingEventHandler):
+    """Set has_changes when changes are notified by watchdog."""
+
+    def __init__(
+        self, has_changes: Event, ignore_patterns: List[str] = None,
+    ):
+        PatternMatchingEventHandler.__init__(self, ignore_patterns=ignore_patterns)
+        self.has_changes = has_changes
+
+    def on_any_event(self, event: FileSystemEvent) -> None:
+        """Sync local workspace when file changes"""
+        self.has_changes.set()
 
 
 @dataclass
@@ -113,6 +135,7 @@ cd {relative_path}
         dry_run: bool = False,
         mirror: bool = False,
         ports: Optional[Tuple[int, int]] = None,
+        hot_reload: bool = False,
     ) -> int:
         """Execute a command remotely using ssh. Push the local files to remote location before that and
         pull them back after command was executed regardless of the result.
@@ -127,11 +150,14 @@ cd {relative_path}
         :param mirror: mirror local files remotely. It will remove ALL the remote files in the directory
                        that weren't synced from local workspace
         :param ports: A tuple of remote port,local port to enable local port forwarding
+        :param hot_reload: Continuously sync files from local to remote while executing the command
         :returns: an exit code of a remote process
         """
 
         self.push(dry_run=dry_run, verbose=verbose, mirror=mirror)
-        exit_code = self.execute(command, simple=simple, dry_run=dry_run, raise_on_error=False, ports=ports)
+        exit_code = self.execute(
+            command, simple=simple, dry_run=dry_run, raise_on_error=False, ports=ports, hot_reload=hot_reload
+        )
         if exit_code != 0:
             logger.info(f"Remote command exited with {exit_code}")
         self.pull(dry_run=dry_run, verbose=verbose)
@@ -144,6 +170,7 @@ cd {relative_path}
         dry_run: bool = False,
         raise_on_error: bool = True,
         ports: Optional[Tuple[int, int]] = None,
+        hot_reload: bool = False,
     ) -> int:
         """Execute a command remotely using ssh
 
@@ -153,6 +180,7 @@ cd {relative_path}
         :param dry_run: log the command to be executed but don't run it.
         :param raise_on_error: raise exception if error code was other than 0.
         :param ports: A tuple of remote port, local port to enable local port forwarding
+        :param hot_reload: Continuously sync files from local to remote while executing the command
 
         :returns: an exit code of a remote process
         """
@@ -162,7 +190,8 @@ cd {relative_path}
 
         port_forwarding = ForwardingOptions(remote_port=ports[0], local_port=ports[1]) if ports else None
         ssh = self.get_ssh(port_forwarding)
-        return ssh.execute(formatted_command, dry_run, raise_on_error)
+        with self.hot_reload() if hot_reload else contextlib.nullcontext():
+            return ssh.execute(formatted_command, dry_run, raise_on_error)
 
     def push(self, info: bool = False, verbose: bool = False, dry_run: bool = False, mirror: bool = False) -> None:
         """Push local workspace files to remote directory
@@ -235,3 +264,34 @@ cd {relative_path}
     def create_remote(self) -> None:
         """Remove remote directory"""
         self.execute(f"mkdir -p {self.remote.directory}", simple=True)
+
+    @contextmanager
+    def hot_reload(self, hot_reload_time: float = 1) -> None:
+        """Sync local files whenever a change is made."""
+        has_changes = Event()
+        # Set up a worker thread to process the changes after the changes are settled as per the hot reload time.
+        worker = Thread(target=self.process_events, args=(has_changes, hot_reload_time))
+        # Start observing the local workspace.
+        observer = Observer()
+        observer.schedule(SyncedWorkSpaceHandler(has_changes), self.local_root, recursive=True)
+        try:
+            worker.start()
+            observer.start()
+            yield
+        finally:
+            observer.stop()
+            worker.do_run = False
+            observer.join()
+            worker.join()
+
+    def process_events(self, has_changes: Event, hot_reload_time: float = 1) -> None:
+        """Process file system events."""
+        thread = threading.currentThread()
+        # The do_run attribute helps in gracefully stopping the thread.
+        while getattr(thread, "do_run", True):
+            time.sleep(hot_reload_time)
+            # Timeout after 1 second if there are no changes.
+            has_any_changes = has_changes.wait(timeout=1)
+            if has_any_changes:
+                has_changes.clear()
+                self.push()

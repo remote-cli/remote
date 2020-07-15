@@ -969,3 +969,13 @@ echo test
             stdin=ANY,
             stdout=ANY,
         )
+
+
+@patch("remote.util.subprocess.run")
+def test_live_reload(mock_run, tmp_workspace):
+    """Ensure the execution with live reload runs successfully"""
+    mock_run.return_value = Mock(returncode=0)
+    runner = CliRunner()
+    with cwd(tmp_workspace):
+        result = runner.invoke(entrypoints.remote, ["--hot-reload", "echo test"])
+        assert result.exit_code == 0
