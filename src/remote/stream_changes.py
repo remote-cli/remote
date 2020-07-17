@@ -36,7 +36,7 @@ class ProcessEvents(Thread):
     def run(self):
         while self.do_run:
             time.sleep(self.settle_time)
-            if self.has_changes.is_set():
+            if self.has_changes.is_set() and self.do_run:
                 self.has_changes.clear()
                 self.callback()
 

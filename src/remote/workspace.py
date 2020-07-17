@@ -130,7 +130,7 @@ cd {relative_path}
         :param mirror: mirror local files remotely. It will remove ALL the remote files in the directory
                        that weren't synced from local workspace
         :param ports: A tuple of remote port,local port to enable local port forwarding
-        :param stream_changes: Continuously sync files from local to remote while executing the command
+        :param stream_changes: Resync local changes if any while the command is being run remotely
         :returns: an exit code of a remote process
         """
 
@@ -160,7 +160,7 @@ cd {relative_path}
         :param dry_run: log the command to be executed but don't run it.
         :param raise_on_error: raise exception if error code was other than 0.
         :param ports: A tuple of remote port, local port to enable local port forwarding
-        :param stream_changes: Continuously sync files from local to remote while executing the command
+        :param stream_changes: Resync local changes if any while the command is being run remotely
 
         :returns: an exit code of a remote process
         """

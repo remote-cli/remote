@@ -219,8 +219,7 @@ If local port is not passed, the local port value would be set to <remote port> 
     "--stream-changes",
     default=False,
     is_flag=True,
-    help="Continuously sync files from local to remote \
-     while executing the command",
+    help="Resync local changes if any while the command is being run remotely",
 )
 @click.option("-l", "--label", help="use the host that has corresponding label for the remote execution")
 @click.argument("command", nargs=-1, required=True)
