@@ -45,10 +45,10 @@ class ProcessEvents(Thread):
 
 
 @contextmanager
-def stream_local_changes(
+def execute_on_file_change(
     local_root: Path, callback: Callable[[], None], settle_time: float = 1, ignore_patterns: List[str] = None
 ) -> None:
-    """Sync local files whenever a change is made."""
+    """Execute callback whenever files change."""
     has_changes = Event()
     # Set up a worker thread to process the changes after the changes are settled as per the settle time.
     worker = ProcessEvents(has_changes=has_changes, callback=callback, settle_time=settle_time)
