@@ -25,42 +25,6 @@ jobs:
           with:
             name: remote-sh
             path: remote-sh.tgz
-
-    pyoxidizer-tgz:
-      name: Build pyoxidizer implementation
-      runs-on: macos-latest
-      steps:
-        - name: Check out code
-          uses: actions/checkout@v2
-        - name: Set up cargo
-          uses: actions-rs/toolchain@v1
-          with:
-            profile: minimal
-            toolchain: stable
-            override: true
-        - name: Set up Python
-          uses: actions/setup-python@v1
-          with:
-            python-version: 3.8
-        - name: Install pyoxidizer
-          run: cargo install pyoxidizer
-        - name: Build executable and tgz
-          run: |
-            mkdir -p build/remote/bin
-            pyoxidizer build --release
-            cp build/*/release/exe/remote-exec build/remote/bin
-            pip install -e .
-            python scripts/setup-entrypoints.py build/remote/bin
-            cd build
-            tar -cvzf ../remote-pyoxidizer-macos-latest.tgz remote
-        - name: Test binary is ok
-          run: build/remote/bin/remote -h
-        - name: Upload release artifact
-          uses: actions/upload-artifact@v2
-          with:
-            name: remote-pyoxidizer-macos-latest
-            path: remote-pyoxidizer-macos-latest.tgz
-
     shiv-tgz:
       name: Build shiv implementation
       runs-on: ubuntu-latest
@@ -94,7 +58,6 @@ jobs:
       runs-on: ubuntu-latest
       needs:
         - bash-tgz
-        - pyoxidizer-tgz
         - shiv-tgz
       if: github.event_name == 'push'
       steps:
@@ -107,10 +70,6 @@ jobs:
           uses: actions/download-artifact@v2
           with:
             name: remote-sh
-        - name: Fetch pyoxidizer macos artifact
-          uses: actions/download-artifact@v2
-          with:
-            name: remote-pyoxidizer-macos-latest
         - name: Fetch shiv multiplatform artifact
           uses: actions/download-artifact@v2
           with:
@@ -135,15 +94,6 @@ jobs:
             upload_url: ${{ steps.create_release.outputs.upload_url }}
             asset_path: ./remote-sh.tgz
             asset_name: remote-${{ steps.release_info.outputs.version }}-sh.tgz
-            asset_content_type: applictaion/gzip
-        - name: Upload pyoxidizer macos artifact
-          uses: actions/upload-release-asset@v1
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          with:
-            upload_url: ${{ steps.create_release.outputs.upload_url }}
-            asset_path: ./remote-pyoxidizer-macos-latest.tgz
-            asset_name: remote-${{ steps.release_info.outputs.version }}-macos.tgz
             asset_content_type: applictaion/gzip
         - name: Upload shiv artifact
           uses: actions/upload-release-asset@v1
