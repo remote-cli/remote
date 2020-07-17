@@ -215,8 +215,8 @@ def remote_set(index: int):
 If local port is not passed, the local port value would be set to <remote port> value by default",
 )
 @click.option(
-    "-h",
-    "--hot-reload",
+    "-s",
+    "--stream-changes",
     default=False,
     is_flag=True,
     help="Continuously sync files from local to remote \
@@ -233,7 +233,7 @@ def remote(
     e: bool,
     port_args: Optional[str],
     label: Optional[str],
-    hot_reload: bool,
+    stream_changes: bool,
 ):
     """Sync local workspace files to remote machine, execute the COMMAND and sync files back regardless of the result"""
 
@@ -250,7 +250,7 @@ def remote(
 
     workspace = SyncedWorkspace.from_cwd(int_or_str_label(label))
     exit_code = workspace.execute_in_synced_env(
-        command, dry_run=dry_run, verbose=verbose, mirror=mirror, ports=ports, hot_reload=hot_reload
+        command, dry_run=dry_run, verbose=verbose, mirror=mirror, ports=ports, stream_changes=stream_changes
     )
     if exit_code != 0:
         click.secho(f"Remote command exited with {exit_code}", fg="yellow")

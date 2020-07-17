@@ -1,5 +1,4 @@
 from pathlib import Path
-from time import sleep
 from unittest.mock import ANY, MagicMock, call, patch
 
 import pytest
@@ -7,14 +6,6 @@ import pytest
 from remote.configuration import RemoteConfig
 from remote.exceptions import InvalidRemoteHostLabel
 from remote.workspace import SyncedWorkspace
-
-
-@pytest.fixture
-def workspace(workspace_config):
-    workspace_config.ignores.pull.append("build")
-    working_dir = workspace_config.root / "foo" / "bar"
-    working_dir.mkdir(parents=True)
-    return SyncedWorkspace.from_config(workspace_config, working_dir)
 
 
 def test_create_workspace(workspace_config):
@@ -157,45 +148,6 @@ def test_pull_with_subdir(mock_run, workspace):
         stderr=ANY,
         stdout=ANY,
     )
-
-
-@patch("remote.util.subprocess.run")
-def test_sync_continuously(mock_run, workspace):
-    """workspace pull is called when a file is created."""
-    mock_run.return_value = MagicMock(returncode=0)
-    with workspace.hot_reload(0.01):
-        (workspace.local_root / "foo.txt").touch()
-        # Mock command execution behavior.
-        sleep(0.3)
-    mock_run.assert_called_once_with(
-        [
-            "rsync",
-            "-arlpmchz",
-            "--copy-unsafe-links",
-            "-e",
-            "ssh -Kq -o BatchMode=yes",
-            "--force",
-            "--delete",
-            "--rsync-path",
-            "mkdir -p remote/dir && rsync",
-            "--include-from",
-            ANY,
-            f"{workspace.local_root}/",
-            f"{workspace.remote.host}:{workspace.remote.directory}",
-        ],
-        stderr=ANY,
-        stdout=ANY,
-    )
-
-
-@patch("remote.util.subprocess.run")
-def test_sync_continuously_when_no_events_triggered(mock_run, workspace):
-    """Local sources should not be synced as nothing changed."""
-    mock_run.return_value = MagicMock(returncode=0)
-    with workspace.hot_reload(0.01):
-        # Mock command execution behavior.
-        sleep(0.3)
-    assert not mock_run.called
 
 
 @patch("remote.util.subprocess.run")

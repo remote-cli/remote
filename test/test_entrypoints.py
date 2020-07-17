@@ -972,10 +972,10 @@ echo test
 
 
 @patch("remote.util.subprocess.run")
-def test_live_reload(mock_run, tmp_workspace):
-    """Ensure the execution with live reload runs successfully"""
+def test_stream_changes(mock_run, tmp_workspace):
+    """Ensure the execution with stream changes runs successfully"""
     mock_run.return_value = Mock(returncode=0)
     runner = CliRunner()
     with cwd(tmp_workspace):
-        result = runner.invoke(entrypoints.remote, ["--hot-reload", "echo test"])
+        result = runner.invoke(entrypoints.remote, ["--stream-changes", "echo test"])
         assert result.exit_code == 0
