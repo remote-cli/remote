@@ -8,14 +8,6 @@ from remote.exceptions import InvalidRemoteHostLabel
 from remote.workspace import SyncedWorkspace
 
 
-@pytest.fixture
-def workspace(workspace_config):
-    workspace_config.ignores.pull.append("build")
-    working_dir = workspace_config.root / "foo" / "bar"
-    working_dir.mkdir(parents=True)
-    return SyncedWorkspace.from_config(workspace_config, working_dir)
-
-
 def test_create_workspace(workspace_config):
     working_dir = workspace_config.root / "foo" / "bar"
     workspace = SyncedWorkspace.from_config(workspace_config, working_dir)

@@ -1,3 +1,4 @@
+import contextlib
 import logging
 
 from dataclasses import dataclass, replace
@@ -8,6 +9,7 @@ from remote.exceptions import InvalidRemoteHostLabel
 
 from .configuration import RemoteConfig, SyncRules, WorkspaceConfig
 from .configuration.discovery import load_cwd_workspace_config
+from .stream_changes import stream_local_changes
 from .util import ForwardingOptions, Ssh, prepare_shell_command, rsync
 
 logger = logging.getLogger(__name__)
@@ -113,6 +115,7 @@ cd {relative_path}
         dry_run: bool = False,
         mirror: bool = False,
         ports: Optional[Tuple[int, int]] = None,
+        stream_changes: bool = False,
     ) -> int:
         """Execute a command remotely using ssh. Push the local files to remote location before that and
         pull them back after command was executed regardless of the result.
@@ -127,11 +130,14 @@ cd {relative_path}
         :param mirror: mirror local files remotely. It will remove ALL the remote files in the directory
                        that weren't synced from local workspace
         :param ports: A tuple of remote port,local port to enable local port forwarding
+        :param stream_changes: Resync local changes if any while the command is being run remotely
         :returns: an exit code of a remote process
         """
 
         self.push(dry_run=dry_run, verbose=verbose, mirror=mirror)
-        exit_code = self.execute(command, simple=simple, dry_run=dry_run, raise_on_error=False, ports=ports)
+        exit_code = self.execute(
+            command, simple=simple, dry_run=dry_run, raise_on_error=False, ports=ports, stream_changes=stream_changes
+        )
         if exit_code != 0:
             logger.info(f"Remote command exited with {exit_code}")
         self.pull(dry_run=dry_run, verbose=verbose)
@@ -144,6 +150,7 @@ cd {relative_path}
         dry_run: bool = False,
         raise_on_error: bool = True,
         ports: Optional[Tuple[int, int]] = None,
+        stream_changes: bool = False,
     ) -> int:
         """Execute a command remotely using ssh
 
@@ -153,6 +160,7 @@ cd {relative_path}
         :param dry_run: log the command to be executed but don't run it.
         :param raise_on_error: raise exception if error code was other than 0.
         :param ports: A tuple of remote port, local port to enable local port forwarding
+        :param stream_changes: Resync local changes if any while the command is being run remotely
 
         :returns: an exit code of a remote process
         """
@@ -162,7 +170,11 @@ cd {relative_path}
 
         port_forwarding = ForwardingOptions(remote_port=ports[0], local_port=ports[1]) if ports else None
         ssh = self.get_ssh(port_forwarding)
-        return ssh.execute(formatted_command, dry_run, raise_on_error)
+
+        with stream_local_changes(
+            local_root=self.local_root, callback=self.push, settle_time=1
+        ) if stream_changes else contextlib.suppress():
+            return ssh.execute(formatted_command, dry_run, raise_on_error)
 
     def push(self, info: bool = False, verbose: bool = False, dry_run: bool = False, mirror: bool = False) -> None:
         """Push local workspace files to remote directory

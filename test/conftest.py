@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from remote.configuration import RemoteConfig, WorkspaceConfig
+from remote.workspace import SyncedWorkspace
 
 
 @pytest.fixture
@@ -15,6 +16,14 @@ def workspace_config(tmp_path):
         RemoteConfig(host="test-host.example.com", directory=Path("remote/dir"), shell="sh", shell_options="")
     )
     return config
+
+
+@pytest.fixture
+def workspace(workspace_config):
+    workspace_config.ignores.pull.append("build")
+    working_dir = workspace_config.root / "foo" / "bar"
+    working_dir.mkdir(parents=True)
+    return SyncedWorkspace.from_config(workspace_config, working_dir)
 
 
 @pytest.fixture(autouse=True)

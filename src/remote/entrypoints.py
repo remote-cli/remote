@@ -214,6 +214,13 @@ def remote_set(index: int):
     help="Enable local port forwarding. Pass value as <remote port>:<local port>. \
 If local port is not passed, the local port value would be set to <remote port> value by default",
 )
+@click.option(
+    "-s",
+    "--stream-changes",
+    default=False,
+    is_flag=True,
+    help="Resync local changes if any while the command is being run remotely",
+)
 @click.option("-l", "--label", help="use the host that has corresponding label for the remote execution")
 @click.argument("command", nargs=-1, required=True)
 @log_exceptions
@@ -225,6 +232,7 @@ def remote(
     e: bool,
     port_args: Optional[str],
     label: Optional[str],
+    stream_changes: bool,
 ):
     """Sync local workspace files to remote machine, execute the COMMAND and sync files back regardless of the result"""
 
@@ -240,7 +248,9 @@ def remote(
         sys.exit(1)
 
     workspace = SyncedWorkspace.from_cwd(int_or_str_label(label))
-    exit_code = workspace.execute_in_synced_env(command, dry_run=dry_run, verbose=verbose, mirror=mirror, ports=ports,)
+    exit_code = workspace.execute_in_synced_env(
+        command, dry_run=dry_run, verbose=verbose, mirror=mirror, ports=ports, stream_changes=stream_changes
+    )
     if exit_code != 0:
         click.secho(f"Remote command exited with {exit_code}", fg="yellow")
 
