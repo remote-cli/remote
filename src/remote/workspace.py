@@ -9,7 +9,7 @@ from remote.exceptions import InvalidRemoteHostLabel
 
 from .configuration import RemoteConfig, SyncRules, WorkspaceConfig
 from .configuration.discovery import load_cwd_workspace_config
-from .stream_changes import stream_local_changes
+from .file_changes import execute_on_file_change
 from .util import ForwardingOptions, Ssh, prepare_shell_command, rsync
 
 logger = logging.getLogger(__name__)
@@ -171,7 +171,7 @@ cd {relative_path}
         port_forwarding = ForwardingOptions(remote_port=ports[0], local_port=ports[1]) if ports else None
         ssh = self.get_ssh(port_forwarding)
 
-        with stream_local_changes(
+        with execute_on_file_change(
             local_root=self.local_root, callback=self.push, settle_time=1
         ) if stream_changes else contextlib.suppress():
             return ssh.execute(formatted_command, dry_run, raise_on_error)
