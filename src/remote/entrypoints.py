@@ -162,10 +162,10 @@ def remote_init(connection: str):
 
 @click.command(context_settings=DEFAULT_CONTEXT_SETTINGS)
 @click.option(
-    "-p", "--push", is_flag=True, help="add IGNORE patters to push ignore list (mutually exclusive with '--pull')"
+    "-p", "--push", is_flag=True, help="add IGNORE pattern to push ignore list (mutually exclusive with '--pull')"
 )
 @click.option(
-    "-l", "--pull", is_flag=True, help="add IGNORE patters to pull ignore list (mutually exclusive with '--push')"
+    "-l", "--pull", is_flag=True, help="add IGNORE pattern to pull ignore list (mutually exclusive with '--push')"
 )
 @click.argument("ignore", nargs=-1, required=True)
 @log_exceptions
@@ -245,7 +245,7 @@ If local port is not passed, the local port value would be set to <remote port> 
     help="Resync local changes if any while the command is being run remotely",
 )
 @click.option("-l", "--label", help="use the host that has corresponding label for the remote execution")
-@click.option("--multi", is_flag=True, help="sync and run the remote commands o neach remote host from config")
+@click.option("--multi", is_flag=True, help="sync and run the remote commands on each remote host from config")
 @click.option(
     "--log",
     type=click.Path(file_okay=False, resolve_path=True),

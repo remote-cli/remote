@@ -1,3 +1,10 @@
+1.6.0
+-----
+* support source changes streaming with watchdog
+* add remote-explain CLI entry point
+* add --multi and --log flags to remote entry point
+* add --push and --pull flags to remote-ignore entyr point
+
 1.5.0
 -----
 * use TOML configs by default
