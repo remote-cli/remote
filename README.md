@@ -35,7 +35,7 @@ brew install remote-cli/remote/remote
 Then, you will always be able to update it to the latest version:
 
 ```bash
-brew update remote
+brew upgrade remote
 ```
 
 ### Installing on other systems
