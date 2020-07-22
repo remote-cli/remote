@@ -110,6 +110,28 @@ def test_push(mock_run, workspace):
 
 
 @patch("remote.util.subprocess.run")
+def test_push_with_subdir(mock_run, workspace):
+    mock_run.return_value = MagicMock(returncode=0)
+
+    workspace.push(subpath=Path("some-path"))
+    mock_run.assert_called_once_with(
+        [
+            "rsync",
+            "-arlpmchz",
+            "--copy-unsafe-links",
+            "-e",
+            "ssh -Kq -o BatchMode=yes",
+            "--force",
+            "--delete",
+            f"{workspace.local_root}/foo/bar/some-path",
+            f"{workspace.remote.host}:{workspace.remote.directory}/foo/bar/",
+        ],
+        stderr=ANY,
+        stdout=ANY,
+    )
+
+
+@patch("remote.util.subprocess.run")
 def test_pull(mock_run, workspace):
     mock_run.return_value = MagicMock(returncode=0)
 

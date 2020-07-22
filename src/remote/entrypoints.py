@@ -14,6 +14,7 @@ from .configuration import WorkspaceConfig
 from .configuration.discovery import get_configuration_medium, load_cwd_workspace_config, save_config
 from .configuration.shared import HOST_REGEX, PATH_REGEX
 from .exceptions import InvalidInputError, RemoteError
+from .explain import explain
 from .util import CommunicationOptions, parse_ports
 from .workspace import SyncedWorkspace
 
@@ -409,11 +410,15 @@ def remote_delete(label: Optional[str]):
 
 
 @click.command(context_settings=DEFAULT_CONTEXT_SETTINGS)
+@click.option("-l", "--label", help="use the host that has corresponding label for the remote execution")
+@click.option("-d", "--deep", is_flag=True, help="check latency and download/upload speed if connection is ok")
 @log_exceptions
-def remote_explain():
-    click.secho("Sorry, remote-explain is not yet implemented in the new version of Remote.", fg="yellow")
-    click.secho("Please use the old one if you need it", fg="yellow")
-    sys.exit(1)
+def remote_explain(label: Optional[str], deep: bool):
+    """Print out various debug information to debug the workspace"""
+    logging.basicConfig(level=logging.INFO, format=BASE_LOGGING_FORMAT)
+
+    workspace = SyncedWorkspace.from_cwd(int_or_str_label(label))
+    explain(workspace, deep)
 
 
 @click.command(context_settings=DEFAULT_CONTEXT_SETTINGS)
