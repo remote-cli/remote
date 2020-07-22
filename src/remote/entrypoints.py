@@ -2,20 +2,20 @@ import logging
 import re
 import sys
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from typing import List, Optional, Union
 
 import click
 
-from remote.exceptions import InvalidInputError
-from remote.util import parse_ports
-
 from .configuration import WorkspaceConfig
 from .configuration.discovery import get_configuration_medium, load_cwd_workspace_config, save_config
 from .configuration.shared import HOST_REGEX, PATH_REGEX
-from .exceptions import RemoteError
+from .exceptions import InvalidInputError, RemoteError
 from .explain import explain
+from .util import CommunicationOptions, parse_ports
 from .workspace import SyncedWorkspace
 
 BASE_LOGGING_FORMAT = "%(message)s"
@@ -124,8 +124,14 @@ def remote_init(connection: str):
     """Initiate workspace for the remote execution in the current working directory"""
 
     try:
-        load_cwd_workspace_config()
-        click.secho("A configured workspace already exists in the current directory.", fg="yellow")
+        workspace = load_cwd_workspace_config()
+        if workspace.root == Path.cwd():
+            click.secho("A configured workspace already exists in the current working directory.", fg="yellow")
+        else:
+            click.secho(
+                f"A configured workspace already initiated in the current working directory's parent {workspace.root}.",
+                fg="yellow",
+            )
         click.secho("If you want to add a new host to it, please use remote-add.", fg="yellow")
         sys.exit(1)
     except RemoteError:
@@ -155,16 +161,32 @@ def remote_init(connection: str):
 
 
 @click.command(context_settings=DEFAULT_CONTEXT_SETTINGS)
+@click.option(
+    "-p", "--push", is_flag=True, help="add IGNORE patters to push ignore list (mutually exclusive with '--pull')"
+)
+@click.option(
+    "-l", "--pull", is_flag=True, help="add IGNORE patters to pull ignore list (mutually exclusive with '--push')"
+)
 @click.argument("ignore", nargs=-1, required=True)
 @log_exceptions
-def remote_ignore(ignore: List[str]):
+def remote_ignore(ignore: List[str], push: bool, pull: bool):
     """Add new IGNORE patterns to the ignores list
 
     IGNORE pattern should be a string in rsync-friendly format.
+    If no options provided these patterns will be ignored on both push and pull
     """
 
     config = load_cwd_workspace_config()
-    config.ignores.add(ignore)
+    if not push and not pull:
+        config.ignores.add(ignore)
+    elif pull and not push:
+        config.ignores.pull.add(ignore)
+    elif push and not pull:
+        config.ignores.push.add(ignore)
+    else:
+        raise InvalidInputError("You cannot use both '--pull' and '--push' flags")
+    config.ignores.trim()
+
     save_config(config)
 
 
@@ -223,6 +245,13 @@ If local port is not passed, the local port value would be set to <remote port> 
     help="Resync local changes if any while the command is being run remotely",
 )
 @click.option("-l", "--label", help="use the host that has corresponding label for the remote execution")
+@click.option("--multi", is_flag=True, help="sync and run the remote commands o neach remote host from config")
+@click.option(
+    "--log",
+    type=click.Path(file_okay=False, resolve_path=True),
+    help="Write sync and remote command output to the log file instead of stdout. "
+    "Log file will be located inside DIRECTORY/<timestamp>/<host>_output.log",
+)
 @click.argument("command", nargs=-1, required=True)
 @log_exceptions
 def remote(
@@ -234,6 +263,8 @@ def remote(
     port_args: Optional[str],
     label: Optional[str],
     stream_changes: bool,
+    log: Optional[str],
+    multi: bool,
 ):
     """Sync local workspace files to remote machine, execute the COMMAND and sync files back regardless of the result"""
 
@@ -248,14 +279,62 @@ def remote(
         click.secho(str(ex), fg="yellow")
         sys.exit(1)
 
-    workspace = SyncedWorkspace.from_cwd(int_or_str_label(label))
-    exit_code = workspace.execute_in_synced_env(
-        command, dry_run=dry_run, verbose=verbose, mirror=mirror, ports=ports, stream_changes=stream_changes
-    )
-    if exit_code != 0:
-        click.secho(f"Remote command exited with {exit_code}", fg="yellow")
+    if multi and label:
+        raise InvalidInputError("--multi and --label options cannot be used together")
 
-    sys.exit(exit_code)
+    workspaces = SyncedWorkspace.from_cwd_mass() if multi else [SyncedWorkspace.from_cwd(int_or_str_label(label))]
+    with ThreadPoolExecutor(max_workers=len(workspaces)) as executor:
+        futures = {}
+        descriptors = []
+        start_timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        for workspace in workspaces:
+            host = workspace.remote.host
+            if multi or log:
+                # We save logs into the <log_dir>/<timestamp>/<hostname>_output.log
+                log_dir = Path(log) if log else (workspace.local_root / "logs")
+                log_dir = log_dir / start_timestamp
+                log_dir.mkdir(parents=True, exist_ok=True)
+
+                try:
+                    # If the logs are enabled and they are inside the workspace root, we need to exclude them from
+                    # syncing
+                    relative_path = log_dir.relative_to(workspace.local_root)
+                    workspace.ignores.add([f"{relative_path}/*_output.log"])
+                except ValueError:
+                    # Value error means that logs are placed outside of the workspace root
+                    pass
+                fd = (log_dir / f"{host}_output.log").open("w")
+                descriptors.append(fd)
+                workspace.communication = CommunicationOptions(stdin=None, stdout=fd, stderr=fd)
+
+            future = executor.submit(
+                workspace.execute_in_synced_env,
+                command,
+                dry_run=dry_run,
+                verbose=verbose,
+                mirror=mirror,
+                ports=ports,
+                stream_changes=stream_changes,
+            )
+            futures[future] = workspace
+
+        final_exit_code = 0
+        for future in as_completed(list(futures.keys())):
+            workspace = futures[future]
+            try:
+                exit_code = future.result(timeout=0)
+                if exit_code != 0:
+                    click.secho(f"Remote command on {workspace.remote.host} exited with {exit_code}", fg="yellow")
+                    final_exit_code = exit_code
+            except Exception as e:  # noqa: F841
+                class_name = e.__class__.__name__
+                click.secho(f"{class_name}: {e}", fg="yellow")
+                final_exit_code = 255
+
+        for fd in descriptors:
+            fd.close()
+
+    sys.exit(final_exit_code)
 
 
 @click.command(context_settings=EXECUTION_CONTEXT_SETTINGS)
@@ -303,16 +382,19 @@ def remote_pull(dry_run: bool, verbose: bool, path: List[str], label: Optional[s
 @click.option("-v", "--verbose", is_flag=True, help="increase verbosity")
 @click.option("-l", "--label", help="use the host that has corresponding label for the remote execution")
 @click.option(
-    "--mass", is_flag=True, help="push files to all available remote workspaces instead of pushing to the default one"
+    "--multi", is_flag=True, help="push files to all available remote workspaces instead of pushing to the default one"
 )
 @log_exceptions
-def remote_push(dry_run: bool, mirror: bool, verbose: bool, mass: bool, label: Optional[str]):
+def remote_push(dry_run: bool, mirror: bool, verbose: bool, multi: bool, label: Optional[str]):
     """Push local workspace files to the remote directory"""
 
     if verbose:
         logging.basicConfig(level=logging.INFO, format=BASE_LOGGING_FORMAT)
 
-    workspaces = SyncedWorkspace.from_cwd_mass() if mass else [SyncedWorkspace.from_cwd(int_or_str_label(label))]
+    if multi and label:
+        raise InvalidInputError("--multi and --label options cannot be used together")
+
+    workspaces = SyncedWorkspace.from_cwd_mass() if multi else [SyncedWorkspace.from_cwd(int_or_str_label(label))]
     for workspace in workspaces:
         workspace.push(info=True, verbose=verbose, dry_run=dry_run, mirror=mirror)
 
@@ -342,12 +424,12 @@ def remote_explain(label: Optional[str], deep: bool):
 @click.command(context_settings=DEFAULT_CONTEXT_SETTINGS)
 @log_exceptions
 def mremote():
-    click.secho("Sorry, mremote is not yet implemented in the new version of Remote.", fg="yellow")
-    click.secho("Please use the old one if you need it", fg="yellow")
+    click.secho("mremote is deprecated. Please use 'remote --multi' instead.", fg="yellow")
     sys.exit(1)
 
 
 @click.command(context_settings=DEFAULT_CONTEXT_SETTINGS)
 @log_exceptions
 def mremote_push():
-    click.secho("mremote-push is deprecated. Please use 'remote-push --mass' instead.", fg="yellow")
+    click.secho("mremote-push is deprecated. Please use 'remote-push --multi' instead.", fg="yellow")
+    sys.exit(1)

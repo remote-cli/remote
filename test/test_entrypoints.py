@@ -4,8 +4,10 @@ We only mock subprocess calls since we cannot do multi-host testing.
 Some of the test above don't verify much, but they at least ensure that all parts work well together.
 """
 import os
+import sys
 
 from contextlib import contextmanager
+from datetime import datetime
 from unittest.mock import ANY, MagicMock, Mock, call, patch
 
 import pytest
@@ -112,7 +114,10 @@ def test_remote_init(mock_run, tmp_path):
     assert "Remote is configured and ready to use" in result.output
 
     mock_run.assert_called_once_with(
-        ["ssh", "-tKq", "-o", "BatchMode=yes", "test-host.example.com", ANY], stdin=ANY, stdout=ANY, stderr=ANY
+        ["ssh", "-tKq", "-o", "BatchMode=yes", "test-host.example.com", ANY],
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
     )
 
     assert (subdir / WORKSPACE_CONFIG).exists()
@@ -161,9 +166,9 @@ Remote is configured and ready to use
 
     mock_run.assert_called_once_with(
         ["ssh", "-tKq", "-o", "BatchMode=yes", "test-host.example.com", "mkdir -p .path/test.dir/_test-dir"],
-        stdin=ANY,
-        stdout=ANY,
-        stderr=ANY,
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
     )
 
     assert (subdir / WORKSPACE_CONFIG).exists()
@@ -253,7 +258,7 @@ def test_remote_init_fails_if_workspace_is_already_initated(tmp_workspace):
     assert (
         result.output
         == """\
-A configured workspace already exists in the current directory.
+A configured workspace already exists in the current working directory.
 If you want to add a new host to it, please use remote-add.
 """
     )
@@ -315,7 +320,10 @@ def test_remote_add_adds_host(mock_run, tmp_workspace):
     assert (tmp_workspace / CONFIG_FILE_NAME).read_text() == f"{TEST_CONFIG}\nhost:directory\n"
 
     mock_run.assert_called_once_with(
-        ["ssh", "-tKq", "-o", "BatchMode=yes", "host", "mkdir -p directory"], stdin=ANY, stdout=ANY, stderr=ANY,
+        ["ssh", "-tKq", "-o", "BatchMode=yes", "host", "mkdir -p directory"],
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
     )
 
 
@@ -436,6 +444,83 @@ def test_remote(mock_run, tmp_workspace):
                     f"{tmp_workspace}/",
                     f"{TEST_HOST}:{TEST_DIR}",
                 ],
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+            ),
+            call(
+                [
+                    "ssh",
+                    "-tKq",
+                    "-o",
+                    "BatchMode=yes",
+                    TEST_HOST,
+                    """\
+cd .remotes/myproject
+if [ -f .remoteenv ]; then
+  source .remoteenv
+fi
+cd .
+echo test >> .file
+""",
+                ],
+                stdout=sys.stdout,
+                stdin=sys.stdin,
+                stderr=sys.stderr,
+            ),
+            call(
+                [
+                    "rsync",
+                    "-arlpmchz",
+                    "--copy-unsafe-links",
+                    "-e",
+                    "ssh -Kq -o BatchMode=yes",
+                    "--force",
+                    "--exclude-from",
+                    ANY,
+                    f"{TEST_HOST}:{TEST_DIR}/",
+                    f"{tmp_workspace}",
+                ],
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+            ),
+        ]
+    )
+
+
+@patch(
+    "remote.entrypoints.datetime",
+    MagicMock(now=MagicMock(return_value=datetime(year=2020, month=7, day=13, hour=10, minute=11, second=12))),
+)
+@patch("remote.util.subprocess.run")
+def test_remote_with_output_logging(mock_run, tmp_workspace):
+    mock_run.return_value = Mock(returncode=0)
+    runner = CliRunner()
+
+    with cwd(tmp_workspace):
+        result = runner.invoke(entrypoints.remote, ["--log", "my_logs", "echo test >> .file"])
+
+    assert result.exit_code == 0
+    assert mock_run.call_count == 3
+    mock_run.assert_has_calls(
+        [
+            call(
+                [
+                    "rsync",
+                    "-arlpmchz",
+                    "--copy-unsafe-links",
+                    "-e",
+                    "ssh -Kq -o BatchMode=yes",
+                    "--force",
+                    "--delete",
+                    "--rsync-path",
+                    "mkdir -p .remotes/myproject && rsync",
+                    "--include-from",
+                    ANY,
+                    "--exclude-from",
+                    ANY,
+                    f"{tmp_workspace}/",
+                    f"{TEST_HOST}:{TEST_DIR}",
+                ],
                 stdout=ANY,
                 stderr=ANY,
             ),
@@ -456,7 +541,7 @@ echo test >> .file
 """,
                 ],
                 stdout=ANY,
-                stdin=ANY,
+                stdin=None,
                 stderr=ANY,
             ),
             call(
@@ -477,6 +562,99 @@ echo test >> .file
             ),
         ]
     )
+    for mock_call in mock_run.mock_calls:
+        name, args, kwargs = mock_call
+        assert kwargs["stderr"].name.endswith("my_logs/2020-07-13_10:11:12/test-host1.example.com_output.log")
+        assert kwargs["stdout"].name.endswith("my_logs/2020-07-13_10:11:12/test-host1.example.com_output.log")
+        try:
+            assert kwargs["stdin"] is None
+        except KeyError:
+            pass
+
+
+@patch(
+    "remote.entrypoints.datetime",
+    MagicMock(now=MagicMock(return_value=datetime(year=2020, month=7, day=13, hour=10, minute=11, second=12))),
+)
+@patch("remote.util.subprocess.run")
+def test_remote_mass(mock_run, tmp_workspace):
+    mock_run.return_value = Mock(returncode=0)
+    runner = CliRunner()
+
+    with cwd(tmp_workspace):
+        result = runner.invoke(entrypoints.remote, ["--multi", "echo test >> .file"])
+
+    assert result.exit_code == 0
+    assert mock_run.call_count == 3
+    mock_run.assert_has_calls(
+        [
+            call(
+                [
+                    "rsync",
+                    "-arlpmchz",
+                    "--copy-unsafe-links",
+                    "-e",
+                    "ssh -Kq -o BatchMode=yes",
+                    "--force",
+                    "--delete",
+                    "--rsync-path",
+                    "mkdir -p .remotes/myproject && rsync",
+                    "--include-from",
+                    ANY,
+                    "--exclude-from",
+                    ANY,
+                    f"{tmp_workspace}/",
+                    f"{TEST_HOST}:{TEST_DIR}",
+                ],
+                stdout=ANY,
+                stderr=ANY,
+            ),
+            call(
+                [
+                    "ssh",
+                    "-tKq",
+                    "-o",
+                    "BatchMode=yes",
+                    TEST_HOST,
+                    """\
+cd .remotes/myproject
+if [ -f .remoteenv ]; then
+  source .remoteenv
+fi
+cd .
+echo test >> .file
+""",
+                ],
+                stdout=ANY,
+                stdin=None,
+                stderr=ANY,
+            ),
+            call(
+                [
+                    "rsync",
+                    "-arlpmchz",
+                    "--copy-unsafe-links",
+                    "-e",
+                    "ssh -Kq -o BatchMode=yes",
+                    "--force",
+                    "--exclude-from",
+                    ANY,
+                    f"{TEST_HOST}:{TEST_DIR}/",
+                    f"{tmp_workspace}",
+                ],
+                stdout=ANY,
+                stderr=ANY,
+            ),
+        ]
+    )
+    for mock_call in mock_run.mock_calls:
+        name, args, kwargs = mock_call
+        assert kwargs["stderr"].name.endswith("logs/2020-07-13_10:11:12/test-host1.example.com_output.log")
+        assert kwargs["stdout"].name.endswith("logs/2020-07-13_10:11:12/test-host1.example.com_output.log")
+        try:
+            assert kwargs["stdin"] is None
+        except KeyError:
+            pass
 
 
 @pytest.mark.parametrize("label, host", [("usual", "host1"), ("unusual", "host2"), ("2", "host2"), ("3", "host3")])
@@ -528,8 +706,8 @@ directory = "{TEST_DIR}"
                     f"{tmp_path}/",
                     f"{host}:{TEST_DIR}",
                 ],
-                stdout=ANY,
-                stderr=ANY,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
             ),
             call(
                 [
@@ -547,9 +725,9 @@ cd .
 echo test >> .file
 """,
                 ],
-                stdout=ANY,
-                stdin=ANY,
-                stderr=ANY,
+                stdout=sys.stdout,
+                stdin=sys.stdin,
+                stderr=sys.stderr,
             ),
             call(
                 [
@@ -564,8 +742,8 @@ echo test >> .file
                     f"{host}:{TEST_DIR}/",
                     f"{tmp_path}",
                 ],
-                stdout=ANY,
-                stderr=ANY,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
             ),
         ]
     )
@@ -612,8 +790,8 @@ def test_remote_execution_fail(mock_run, tmp_workspace):
                     f"{tmp_workspace}/",
                     f"{TEST_HOST}:{TEST_DIR}",
                 ],
-                stdout=ANY,
-                stderr=ANY,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
             ),
             call(
                 [
@@ -631,9 +809,9 @@ cd .
 echo 'test >> .file'
 """,
                 ],
-                stdout=ANY,
-                stdin=ANY,
-                stderr=ANY,
+                stdout=sys.stdout,
+                stdin=sys.stdin,
+                stderr=sys.stderr,
             ),
             call(
                 [
@@ -648,8 +826,8 @@ echo 'test >> .file'
                     f"{TEST_HOST}:{TEST_DIR}/",
                     f"{tmp_workspace}",
                 ],
-                stdout=ANY,
-                stderr=ANY,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
             ),
         ]
     )
@@ -664,7 +842,7 @@ def test_remote_sync_fail(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote, ["echo test >> .file"])
 
-    assert result.exit_code == 1
+    assert result.exit_code == 255
     mock_run.assert_called_once_with(
         [
             "rsync",
@@ -683,8 +861,8 @@ def test_remote_sync_fail(mock_run, tmp_workspace):
             f"{tmp_workspace}/",
             f"{TEST_HOST}:{TEST_DIR}",
         ],
-        stdout=ANY,
-        stderr=ANY,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
     )
 
 
@@ -713,9 +891,9 @@ cd .
 echo test
 """,
         ],
-        stdout=ANY,
-        stdin=ANY,
-        stderr=ANY,
+        stdout=sys.stdout,
+        stdin=sys.stdin,
+        stderr=sys.stderr,
     )
 
 
@@ -755,9 +933,9 @@ cd .
 echo test
 """,
         ],
-        stdout=ANY,
-        stdin=ANY,
-        stderr=ANY,
+        stdout=sys.stdout,
+        stdin=sys.stdin,
+        stderr=sys.stderr,
     )
 
 
@@ -789,8 +967,8 @@ def test_remote_push(mock_run, tmp_workspace):
             f"{tmp_workspace}/",
             f"{TEST_HOST}:{TEST_DIR}",
         ],
-        stdout=ANY,
-        stderr=ANY,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
     )
 
 
@@ -802,7 +980,7 @@ def test_remote_push_mass(mock_run, tmp_workspace):
     runner = CliRunner()
 
     with cwd(tmp_workspace):
-        result = runner.invoke(entrypoints.remote_push, "--mass")
+        result = runner.invoke(entrypoints.remote_push, "--multi")
 
     assert result.exit_code == 0
     assert mock_run.call_count == 2
@@ -827,8 +1005,8 @@ def test_remote_push_mass(mock_run, tmp_workspace):
                     f"{tmp_workspace}/",
                     f"{TEST_HOST}:{TEST_DIR}",
                 ],
-                stdout=ANY,
-                stderr=ANY,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
             ),
             call(
                 [
@@ -849,8 +1027,8 @@ def test_remote_push_mass(mock_run, tmp_workspace):
                     f"{tmp_workspace}/",
                     "new-host:other-directory",
                 ],
-                stdout=ANY,
-                stderr=ANY,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
             ),
         ]
     )
@@ -879,8 +1057,8 @@ def test_remote_pull(mock_run, tmp_workspace):
             f"{TEST_HOST}:{TEST_DIR}/",
             str(tmp_workspace),
         ],
-        stdout=ANY,
-        stderr=ANY,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
     )
 
 
@@ -908,8 +1086,8 @@ def test_remote_pull_subdirs(mock_run, tmp_workspace):
                     f"{TEST_HOST}:{TEST_DIR}/build",
                     f"{tmp_workspace}/",
                 ],
-                stdout=ANY,
-                stderr=ANY,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
             ),
             call(
                 [
@@ -923,8 +1101,8 @@ def test_remote_pull_subdirs(mock_run, tmp_workspace):
                     f"{TEST_HOST}:{TEST_DIR}/dist",
                     f"{tmp_workspace}/",
                 ],
-                stdout=ANY,
-                stderr=ANY,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
             ),
         ]
     )
@@ -940,7 +1118,10 @@ def test_remote_delete(mock_run, tmp_workspace):
 
     assert result.exit_code == 0
     mock_run.assert_called_once_with(
-        ["ssh", "-tKq", "-o", "BatchMode=yes", TEST_HOST, f"rm -rf {TEST_DIR}"], stdin=ANY, stdout=ANY, stderr=ANY,
+        ["ssh", "-tKq", "-o", "BatchMode=yes", TEST_HOST, f"rm -rf {TEST_DIR}"],
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
     )
 
 
@@ -996,9 +1177,9 @@ cd .
 echo test
 """,
             ],
-            stderr=ANY,
-            stdin=ANY,
-            stdout=ANY,
+            stderr=sys.stderr,
+            stdin=sys.stdin,
+            stdout=sys.stdout,
         )
 
 

@@ -1,4 +1,6 @@
-from unittest.mock import ANY, MagicMock, patch
+import sys
+
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -96,8 +98,8 @@ def test_rsync_respects_all_options(mock_run, rsync_ssh):
             "src/",
             "dst",
         ],
-        stdout=ANY,
-        stderr=ANY,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
     )
 
 
@@ -196,7 +198,7 @@ def test_ssh_execute(mock_run, ports, expected_command_run):
     code = ssh.execute("exit 0")
 
     assert code == 0
-    mock_run.assert_called_once_with(expected_command_run, stdout=ANY, stderr=ANY, stdin=ANY)
+    mock_run.assert_called_once_with(expected_command_run, stdout=sys.stdout, stderr=sys.stderr, stdin=sys.stdin)
 
 
 @pytest.mark.parametrize("returncode, error", [(255, RemoteConnectionError), (1, RemoteExecutionError)])
@@ -210,9 +212,9 @@ def test_ssh_raises_exception(mock_run, returncode, error):
 
     mock_run.assert_called_once_with(
         ["ssh", "-tKq", "-o", "BatchMode=yes", "my-host.example.com", f"exit {returncode}"],
-        stdout=ANY,
-        stderr=ANY,
-        stdin=ANY,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+        stdin=sys.stdin,
     )
 
 
@@ -228,19 +230,10 @@ def test_ssh_returns_error_code_if_configured(mock_run, returncode):
     assert code == returncode
     mock_run.assert_called_once_with(
         ["ssh", "-tKq", "-o", "BatchMode=yes", "my-host.example.com", f"exit {returncode}"],
-        stdout=ANY,
-        stderr=ANY,
-        stdin=ANY,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+        stdin=sys.stdin,
     )
-
-
-@patch("remote.util.subprocess.run")
-def test_ssh_no_execute_on_dry_run(mock_run):
-    ssh = Ssh("my-host.example.com")
-    code = ssh.execute("exit 1", dry_run=True)
-
-    assert code == 0
-    mock_run.assert_not_called()
 
 
 @pytest.mark.parametrize(

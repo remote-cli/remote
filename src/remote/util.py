@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, fields, is_dataclass
 from enum import IntEnum
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, TextIO, Tuple, Union
 
 from remote.exceptions import InvalidInputError
 
@@ -66,6 +66,13 @@ class VerbosityLevel(IntEnum):
 
 
 @dataclass(frozen=True)
+class CommunicationOptions:
+    stdin: Optional[TextIO] = sys.stdin
+    stdout: TextIO = sys.stdout
+    stderr: TextIO = sys.stderr
+
+
+@dataclass(frozen=True)
 class Ssh:
     """Ssh configuration class, pregenrates and executes commands remotely"""
 
@@ -76,6 +83,7 @@ class Ssh:
     use_gssapi_auth: bool = True
     disable_password_auth: bool = True
     local_port_forwarding: Optional[ForwardingOptions] = None
+    communication: CommunicationOptions = CommunicationOptions()
 
     def generate_command(self) -> List[str]:
         """Generate the base ssh command to execute (without host)"""
@@ -112,11 +120,10 @@ class Ssh:
         """Generate the base ssh command to execute (without host)"""
         return prepare_shell_command(self.generate_command())
 
-    def execute(self, command: str, dry_run: bool = False, raise_on_error: bool = True) -> int:
+    def execute(self, command: str, raise_on_error: bool = True) -> int:
         """Execute a command remotely using SSH and return it's exit code
 
         :param command: a command to execute
-        :param dry_run: log command instead of executing it
         :param raise_on_error: raise an exception is remote execution
 
         :returns: exit code of remote command or 255 if connection didn't go through
@@ -124,12 +131,14 @@ class Ssh:
         subprocess_command = self.generate_command()
 
         logger.info("Executing:\n%s %s <<EOS\n%sEOS", " ".join(subprocess_command), self.host, command)
-        if dry_run:
-            return 0
-
         subprocess_command.extend((self.host, command))
         with _measure_duration("Execution"):
-            result = subprocess.run(subprocess_command, stdout=sys.stdout, stderr=sys.stderr, stdin=sys.stdin)
+            result = subprocess.run(
+                subprocess_command,
+                stdout=self.communication.stdout,
+                stderr=self.communication.stderr,
+                stdin=self.communication.stdin,
+            )
 
         if raise_on_error:
             # ssh exits with the exit status of the remote command or with 255 if an error occurred
@@ -152,6 +161,7 @@ def rsync(
     excludes: List[str] = None,
     includes: List[str] = None,
     extra_args: List[str] = None,
+    communication=CommunicationOptions(),
 ):
     """Run rsync to sync files from src into dst
 
@@ -167,6 +177,7 @@ def rsync(
     :param excludes: List of file patterns to exclude from syncing
     :param includes: List of file patterns to include even if they were excluded by exclude filters
     :param extra_args: Extra arguments for rsync function
+    :param communication: file descriptors to use for process communication
     """
 
     logger.info("Sync files from %s to %s", src, dst)
@@ -193,7 +204,7 @@ def rsync(
 
     logger.info("Starting sync with command %s", " ".join(args))
     with _measure_duration("Sync"):
-        result = subprocess.run(args, stdout=sys.stdout, stderr=sys.stderr)
+        result = subprocess.run(args, stdout=communication.stdout, stderr=communication.stderr)
 
     for file in cleanup:
         file.unlink()

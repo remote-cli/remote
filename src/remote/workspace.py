@@ -9,7 +9,7 @@ from .configuration import RemoteConfig, SyncRules, WorkspaceConfig
 from .configuration.discovery import load_cwd_workspace_config
 from .exceptions import InvalidRemoteHostLabel
 from .file_changes import execute_on_file_change
-from .util import ForwardingOptions, Ssh, VerbosityLevel, prepare_shell_command, rsync
+from .util import CommunicationOptions, ForwardingOptions, Ssh, VerbosityLevel, prepare_shell_command, rsync
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,8 @@ class SyncedWorkspace:
     ignores: SyncRules
     # sync include file patterns
     includes: SyncRules
+    # process communication options
+    communication: CommunicationOptions = CommunicationOptions()
 
     @classmethod
     def from_config(
@@ -90,6 +92,7 @@ class SyncedWorkspace:
             use_gssapi_auth=self.remote.supports_gssapi,
             local_port_forwarding=port_forwarding,
             verbosity_level=VerbosityLevel.VERBOSE if verbose else VerbosityLevel.QUIET,
+            communication=self.communication,
         )
 
     def get_ssh_for_rsync(self):
@@ -167,7 +170,9 @@ cd {relative_path}
         :returns: an exit code of a remote process
         """
         formatted_command = prepare_shell_command(command)
-        if not simple:
+        if dry_run:
+            formatted_command = f"echo {formatted_command}"
+        elif not simple:
             formatted_command = self._generate_command(formatted_command)
 
         port_forwarding = ForwardingOptions(remote_port=ports[0], local_port=ports[1]) if ports else None
@@ -176,7 +181,7 @@ cd {relative_path}
         with execute_on_file_change(
             local_root=self.local_root, callback=self.push, settle_time=1
         ) if stream_changes else contextlib.suppress():
-            return ssh.execute(formatted_command, dry_run, raise_on_error)
+            return ssh.execute(formatted_command, raise_on_error)
 
     def push(
         self,
@@ -221,6 +226,7 @@ cd {relative_path}
             includes=includes,
             excludes=ignores,
             extra_args=extra_args,
+            communication=self.communication,
         )
 
     def pull(
@@ -241,7 +247,15 @@ cd {relative_path}
             dst_path.mkdir(parents=True, exist_ok=True)
             dst = f"{dst_path}/"
 
-            rsync(src, dst, self.get_ssh_for_rsync(), info=info, verbose=verbose, dry_run=dry_run)
+            rsync(
+                src,
+                dst,
+                self.get_ssh_for_rsync(),
+                info=info,
+                verbose=verbose,
+                dry_run=dry_run,
+                communication=self.communication,
+            )
             return
 
         src = f"{self.remote.host}:{self.remote.directory}/"
@@ -257,6 +271,7 @@ cd {relative_path}
             includes=includes,
             dry_run=dry_run,
             excludes=ignores,
+            communication=self.communication,
         )
 
     def clear_remote(self) -> None:

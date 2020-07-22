@@ -1,3 +1,5 @@
+import sys
+
 from pathlib import Path
 from unittest.mock import ANY, MagicMock, call, patch
 
@@ -5,6 +7,7 @@ import pytest
 
 from remote.configuration import RemoteConfig
 from remote.exceptions import InvalidRemoteHostLabel
+from remote.util import CommunicationOptions
 from remote.workspace import SyncedWorkspace
 
 
@@ -74,9 +77,9 @@ def test_clear_remote_workspace(mock_run, workspace):
     # clear should always delete remote root regardless of what the workign dir is
     mock_run.assert_called_once_with(
         ["ssh", "-tKq", "-o", "BatchMode=yes", workspace.remote.host, f"rm -rf {workspace.remote.directory}"],
-        stderr=ANY,
-        stdin=ANY,
-        stdout=ANY,
+        stderr=sys.stderr,
+        stdin=sys.stdin,
+        stdout=sys.stdout,
     )
 
 
@@ -101,8 +104,8 @@ def test_push(mock_run, workspace):
             f"{workspace.local_root}/",
             f"{workspace.remote.host}:{workspace.remote.directory}",
         ],
-        stderr=ANY,
-        stdout=ANY,
+        stderr=sys.stderr,
+        stdout=sys.stdout,
     )
 
 
@@ -146,8 +149,8 @@ def test_pull(mock_run, workspace):
             f"{workspace.remote.host}:{workspace.remote.directory}/",
             f"{workspace.local_root}",
         ],
-        stderr=ANY,
-        stdout=ANY,
+        stderr=sys.stderr,
+        stdout=sys.stdout,
     )
 
 
@@ -167,8 +170,8 @@ def test_pull_with_subdir(mock_run, workspace):
             f"{workspace.remote.host}:{workspace.remote.directory}/foo/bar/some-path",
             f"{workspace.local_root}/foo/bar/",
         ],
-        stderr=ANY,
-        stdout=ANY,
+        stderr=sys.stderr,
+        stdout=sys.stdout,
     )
 
 
@@ -189,8 +192,8 @@ def test_pull_with_subdir_exec_from_root(mock_run, workspace):
             f"{workspace.remote.host}:{workspace.remote.directory}/some-path",
             f"{workspace.local_root}/",
         ],
-        stderr=ANY,
-        stdout=ANY,
+        stderr=sys.stderr,
+        stdout=sys.stdout,
     )
 
 
@@ -215,11 +218,57 @@ cd foo/bar
 echo 'Hello World!'
 """,
         ],
-        stderr=ANY,
-        stdin=ANY,
-        stdout=ANY,
+        stderr=sys.stderr,
+        stdin=sys.stdin,
+        stdout=sys.stdout,
     )
     assert code == 0
+
+
+@patch("remote.util.subprocess.run")
+def test_execute_with_dry_run(mock_run, workspace):
+    mock_run.return_value = MagicMock(returncode=0)
+
+    code = workspace.execute(["echo", "Hello World!"], dry_run=True)
+    mock_run.assert_called_once_with(
+        ["ssh", "-tKq", "-o", "BatchMode=yes", workspace.remote.host, "echo echo 'Hello World!'"],
+        stderr=sys.stderr,
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+    )
+    assert code == 0
+
+
+@patch("remote.util.subprocess.run")
+def test_execute_with_communication_override(mock_run, workspace, tmp_path):
+    mock_run.return_value = MagicMock(returncode=0)
+    logs_dir = tmp_path / "logs"
+    logs_dir.mkdir(parents=True)
+
+    with (logs_dir / "output.log").open("w") as output_file:
+        workspace.communication = CommunicationOptions(stderr=output_file, stdout=output_file, stdin=None)
+        code = workspace.execute(["echo", "Hello World!"])
+        mock_run.assert_called_once_with(
+            [
+                "ssh",
+                "-tKq",
+                "-o",
+                "BatchMode=yes",
+                workspace.remote.host,
+                """\
+cd remote/dir
+if [ -f .remoteenv ]; then
+  source .remoteenv
+fi
+cd foo/bar
+echo 'Hello World!'
+""",
+            ],
+            stderr=output_file,
+            stdin=None,
+            stdout=output_file,
+        )
+        assert code == 0
 
 
 @patch("remote.util.subprocess.run")
@@ -245,9 +294,9 @@ cd foo/bar
 echo 'Hello World!'
 """,
         ],
-        stderr=ANY,
-        stdin=ANY,
-        stdout=ANY,
+        stderr=sys.stderr,
+        stdin=sys.stdin,
+        stdout=sys.stdout,
     )
     assert code == 0
 
@@ -278,9 +327,9 @@ cd foo/bar
 echo 'Hello World!'
 """,
         ],
-        stderr=ANY,
-        stdin=ANY,
-        stdout=ANY,
+        stderr=sys.stderr,
+        stdin=sys.stdin,
+        stdout=sys.stdout,
     )
     assert code == 0
 
@@ -308,8 +357,8 @@ def test_execute_and_sync(mock_run, workspace):
                     f"{workspace.local_root}/",
                     f"{workspace.remote.host}:{workspace.remote.directory}",
                 ],
-                stderr=ANY,
-                stdout=ANY,
+                stderr=sys.stderr,
+                stdout=sys.stdout,
             ),
             call(
                 [
@@ -327,9 +376,9 @@ cd foo/bar
 echo 'Hello World!'
 """,
                 ],
-                stderr=ANY,
-                stdin=ANY,
-                stdout=ANY,
+                stderr=sys.stderr,
+                stdin=sys.stdin,
+                stdout=sys.stdout,
             ),
             call(
                 [
@@ -344,8 +393,8 @@ echo 'Hello World!'
                     f"{workspace.remote.host}:{workspace.remote.directory}/",
                     f"{workspace.local_root}",
                 ],
-                stderr=ANY,
-                stdout=ANY,
+                stderr=sys.stderr,
+                stdout=sys.stdout,
             ),
         ]
     )
@@ -375,8 +424,8 @@ def test_execute_and_sync_with_port_forwarding(mock_run, workspace):
                     f"{workspace.local_root}/",
                     f"{workspace.remote.host}:{workspace.remote.directory}",
                 ],
-                stderr=ANY,
-                stdout=ANY,
+                stderr=sys.stderr,
+                stdout=sys.stdout,
             ),
             call(
                 [
@@ -396,9 +445,9 @@ cd foo/bar
 echo 'Hello World!'
 """,
                 ],
-                stderr=ANY,
-                stdin=ANY,
-                stdout=ANY,
+                stderr=sys.stderr,
+                stdin=sys.stdin,
+                stdout=sys.stdout,
             ),
             call(
                 [
@@ -413,9 +462,80 @@ echo 'Hello World!'
                     f"{workspace.remote.host}:{workspace.remote.directory}/",
                     f"{workspace.local_root}",
                 ],
-                stderr=ANY,
-                stdout=ANY,
+                stderr=sys.stderr,
+                stdout=sys.stdout,
             ),
         ]
     )
     assert code == 10
+
+
+@patch("remote.util.subprocess.run")
+def test_execute_and_sync_with_communication_override(mock_run, workspace, tmp_path):
+    mock_run.side_effect = [MagicMock(returncode=0), MagicMock(returncode=10), MagicMock(returncode=0)]
+    logs_dir = tmp_path / "logs"
+    logs_dir.mkdir(parents=True)
+
+    with (logs_dir / "output.log").open("w") as output_file:
+        workspace.communication = CommunicationOptions(stderr=output_file, stdout=output_file, stdin=None)
+        code = workspace.execute_in_synced_env(["echo", "Hello World!"])
+        mock_run.assert_has_calls(
+            [
+                call(
+                    [
+                        "rsync",
+                        "-arlpmchz",
+                        "--copy-unsafe-links",
+                        "-e",
+                        "ssh -Kq -o BatchMode=yes",
+                        "--force",
+                        "--delete",
+                        "--rsync-path",
+                        "mkdir -p remote/dir && rsync",
+                        "--include-from",
+                        ANY,
+                        f"{workspace.local_root}/",
+                        f"{workspace.remote.host}:{workspace.remote.directory}",
+                    ],
+                    stderr=output_file,
+                    stdout=output_file,
+                ),
+                call(
+                    [
+                        "ssh",
+                        "-tKq",
+                        "-o",
+                        "BatchMode=yes",
+                        workspace.remote.host,
+                        """\
+cd remote/dir
+if [ -f .remoteenv ]; then
+  source .remoteenv
+fi
+cd foo/bar
+echo 'Hello World!'
+""",
+                    ],
+                    stderr=output_file,
+                    stdin=None,
+                    stdout=output_file,
+                ),
+                call(
+                    [
+                        "rsync",
+                        "-arlpmchz",
+                        "--copy-unsafe-links",
+                        "-e",
+                        "ssh -Kq -o BatchMode=yes",
+                        "--force",
+                        "--exclude-from",
+                        ANY,
+                        f"{workspace.remote.host}:{workspace.remote.directory}/",
+                        f"{workspace.local_root}",
+                    ],
+                    stderr=output_file,
+                    stdout=output_file,
+                ),
+            ]
+        )
+        assert code == 10
