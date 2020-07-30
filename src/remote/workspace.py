@@ -3,7 +3,7 @@ import logging
 
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from .configuration import RemoteConfig, SyncRules, WorkspaceConfig
 from .configuration.discovery import load_cwd_workspace_config
@@ -99,15 +99,19 @@ class SyncedWorkspace:
         ssh = self.get_ssh()
         return replace(ssh, force_tty=False)
 
-    def _generate_command(self, command: str) -> str:
+    def _generate_command(self, command: str, env: Dict[str, str]) -> str:
         relative_path = self.remote_working_dir.relative_to(self.remote.directory)
+        env_variables = "\n".join([f"export {k}={env[k]}" for k in sorted(env.keys())])
+        if env_variables:
+            env_variables += "\n"
+
         return f"""\
 cd {self.remote.directory}
 if [ -f .remoteenv ]; then
   source .remoteenv
 fi
 cd {relative_path}
-{command}
+{env_variables}{command}
 """
 
     def execute_in_synced_env(
@@ -119,6 +123,7 @@ cd {relative_path}
         mirror: bool = False,
         ports: Optional[Tuple[int, int]] = None,
         stream_changes: bool = False,
+        env: Optional[Dict[str, str]] = None,
     ) -> int:
         """Execute a command remotely using ssh. Push the local files to remote location before that and
         pull them back after command was executed regardless of the result.
@@ -134,6 +139,9 @@ cd {relative_path}
                        that weren't synced from local workspace
         :param ports: A tuple of remote port,local port to enable local port forwarding
         :param stream_changes: Resync local changes if any while the command is being run remotely
+        :param env: shell environment variables to set remotely before executing the command. This will be
+                    ignored if simple is True
+
         :returns: an exit code of a remote process
         """
 
@@ -155,6 +163,7 @@ cd {relative_path}
         verbose: bool = False,
         ports: Optional[Tuple[int, int]] = None,
         stream_changes: bool = False,
+        env: Optional[Dict[str, str]] = None,
     ) -> int:
         """Execute a command remotely using ssh
 
@@ -166,6 +175,8 @@ cd {relative_path}
         :param ports: A tuple of remote port, local port to enable local port forwarding
         :param stream_changes: Resync local changes if any while the command is being run remotely
         :param verbose: use verbose logging when running ssh
+        :param env: shell environment variables to set remotely before executing the command. This will be
+                    ignored if simple is True
 
         :returns: an exit code of a remote process
         """
@@ -173,7 +184,7 @@ cd {relative_path}
         if dry_run:
             formatted_command = f"echo {formatted_command}"
         elif not simple:
-            formatted_command = self._generate_command(formatted_command)
+            formatted_command = self._generate_command(formatted_command, env or {})
 
         port_forwarding = ForwardingOptions(remote_port=ports[0], local_port=ports[1]) if ports else None
         ssh = self.get_ssh(port_forwarding, verbose)
