@@ -335,6 +335,36 @@ echo 'Hello World!'
 
 
 @patch("remote.util.subprocess.run")
+def test_execute_with_custom_env(mock_run, workspace):
+    mock_run.return_value = MagicMock(returncode=0)
+
+    code = workspace.execute(["echo", "Hello World!"], env={"TEST_VAR": "test", "OTHER_VAR": "meow"})
+    mock_run.assert_called_once_with(
+        [
+            "ssh",
+            "-tKq",
+            "-o",
+            "BatchMode=yes",
+            workspace.remote.host,
+            """\
+cd remote/dir
+if [ -f .remoteenv ]; then
+  source .remoteenv
+fi
+cd foo/bar
+export OTHER_VAR=meow
+export TEST_VAR=test
+echo 'Hello World!'
+""",
+        ],
+        stderr=sys.stderr,
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+    )
+    assert code == 0
+
+
+@patch("remote.util.subprocess.run")
 def test_execute_and_sync(mock_run, workspace):
     mock_run.side_effect = [MagicMock(returncode=0), MagicMock(returncode=10), MagicMock(returncode=0)]
 
