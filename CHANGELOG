@@ -1,3 +1,7 @@
+1.6.1
+-----
+* add an API to set environment variables for the remote execution
+
 1.6.0
 -----
 * support source changes streaming with watchdog
