@@ -1,3 +1,7 @@
+1.7.0
+-----
+* improve the internal port forwarding API
+
 1.6.1
 -----
 * add an API to set environment variables for the remote execution
