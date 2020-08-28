@@ -7,7 +7,7 @@ import pytest
 from pytest import raises
 
 from remote.exceptions import InvalidInputError, RemoteConnectionError, RemoteExecutionError
-from remote.util import ForwardingOptions, Ssh, VerbosityLevel, _temp_file, parse_ports, prepare_shell_command, rsync
+from remote.util import ForwardingOptions, Ssh, VerbosityLevel, _temp_file, prepare_shell_command, rsync
 
 
 def test_temp_file():
@@ -256,9 +256,8 @@ def test_prepare_shell_command(command, expected):
 @pytest.mark.parametrize(
     "port_value, expected_value, exception_raised",
     [
-        (None, None, None),
-        ("5000", (5000, 5000), None),
-        ("5000:5200", (5000, 5200), None),
+        ("5000", ForwardingOptions(5000, 5000), None),
+        ("5000:5200", ForwardingOptions(5000, 5200), None),
         ("bar:foo", None, InvalidInputError),
         ("2.5:100", None, InvalidInputError),
         ("2.6:32:25", None, InvalidInputError),
@@ -268,7 +267,7 @@ def test_prepare_shell_command(command, expected):
 def test_parse_ports(port_value, expected_value, exception_raised):
     if exception_raised:
         with raises(exception_raised):
-            parse_ports(port_value)
+            ForwardingOptions.from_string(port_value)
     else:
-        ports = parse_ports(port_value)
+        ports = ForwardingOptions.from_string(port_value)
         assert expected_value == ports

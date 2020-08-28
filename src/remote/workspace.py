@@ -3,7 +3,7 @@ import logging
 
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 from .configuration import RemoteConfig, SyncRules, WorkspaceConfig
 from .configuration.discovery import load_cwd_workspace_config
@@ -121,7 +121,7 @@ cd {relative_path}
         verbose: bool = False,
         dry_run: bool = False,
         mirror: bool = False,
-        ports: Optional[Tuple[int, int]] = None,
+        ports: Optional[ForwardingOptions] = None,
         stream_changes: bool = False,
         env: Optional[Dict[str, str]] = None,
     ) -> int:
@@ -137,7 +137,7 @@ cd {relative_path}
         :param verbose: use verbose logging when running rsync and remote execution
         :param mirror: mirror local files remotely. It will remove ALL the remote files in the directory
                        that weren't synced from local workspace
-        :param ports: A tuple of remote port,local port to enable local port forwarding
+        :param ports: Settings describing local port forwarding
         :param stream_changes: Resync local changes if any while the command is being run remotely
         :param env: shell environment variables to set remotely before executing the command. This will be
                     ignored if simple is True
@@ -161,7 +161,7 @@ cd {relative_path}
         dry_run: bool = False,
         raise_on_error: bool = True,
         verbose: bool = False,
-        ports: Optional[Tuple[int, int]] = None,
+        ports: Optional[ForwardingOptions] = None,
         stream_changes: bool = False,
         env: Optional[Dict[str, str]] = None,
     ) -> int:
@@ -172,7 +172,7 @@ cd {relative_path}
                        commands with simple will be executed from user's remote home directory
         :param dry_run: log the command to be executed but don't run it.
         :param raise_on_error: raise exception if error code was other than 0.
-        :param ports: A tuple of remote port, local port to enable local port forwarding
+        :param ports: Settings describing local port forwarding
         :param stream_changes: Resync local changes if any while the command is being run remotely
         :param verbose: use verbose logging when running ssh
         :param env: shell environment variables to set remotely before executing the command. This will be
@@ -186,8 +186,7 @@ cd {relative_path}
         elif not simple:
             formatted_command = self._generate_command(formatted_command, env or {})
 
-        port_forwarding = ForwardingOptions(remote_port=ports[0], local_port=ports[1]) if ports else None
-        ssh = self.get_ssh(port_forwarding, verbose)
+        ssh = self.get_ssh(ports, verbose)
 
         with execute_on_file_change(
             local_root=self.local_root, callback=self.push, settle_time=1
