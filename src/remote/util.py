@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, fields, is_dataclass
 from enum import IntEnum
 from pathlib import Path
-from typing import List, Optional, Sequence, TextIO, Tuple, Union
+from typing import List, Optional, Sequence, TextIO, Union
 
 from remote.exceptions import InvalidInputError
 
@@ -56,7 +56,28 @@ class ForwardingOptions:
 
     remote_port: int
     local_port: int
-    host: str = "localhost"
+    remote_interface: str = "localhost"
+    local_interface: Optional[str] = None
+
+    @classmethod
+    def from_string(cls, port_args: str) -> "ForwardingOptions":
+        """Parse port values from the user input.
+        :param host: the input string from port tunnelling option.
+        :returns: A tuple of remote port, local port.
+        """
+        ports: List = port_args.split(":")
+        if len(ports) > 2:
+            raise InvalidInputError("Please pass a valid value to enable local port forwarding")
+        try:
+            if len(ports) == 1:
+                return cls(int(ports[0]), int(ports[0]))
+            return cls(int(ports[0]), int(ports[1]))
+        except ValueError as e:
+            raise InvalidInputError("Please pass valid integer value for ports") from e
+
+    def to_ssh_string(self) -> str:
+        prefix = f"{self.local_interface}:" if self.local_interface else ""
+        return f"{prefix}{self.local_port}:{self.remote_interface}:{self.remote_port}"
 
 
 class VerbosityLevel(IntEnum):
@@ -104,15 +125,7 @@ class Ssh:
             command.extend(("-p", str(self.port)))
 
         if self.local_port_forwarding:
-            command.extend(
-                (
-                    "-L",
-                    (
-                        f"{self.local_port_forwarding.local_port}:"
-                        f"{self.local_port_forwarding.host}:{self.local_port_forwarding.remote_port}"
-                    ),
-                )
-            )
+            command.extend(("-L", self.local_port_forwarding.to_ssh_string()))
 
         return command
 
@@ -231,24 +244,6 @@ def prepare_shell_command(command: Union[str, Sequence[str]]) -> str:
             result.append(item)
 
     return " ".join(result)
-
-
-def parse_ports(port_args: Optional[str]) -> Optional[Tuple[int, int]]:
-    """Parse port values from the user input.
-    :param host: the input string from port tunnelling option.
-    :returns: A tuple of remote port, local port.
-    """
-    if not port_args:
-        return None
-    ports: List = port_args.split(":")
-    if len(ports) > 2:
-        raise InvalidInputError("Please pass a valid value to enable local port forwarding")
-    try:
-        if len(ports) == 1:
-            return (int(ports[0]), int(ports[0]))
-        return (int(ports[0]), int(ports[1]))
-    except ValueError as e:
-        raise InvalidInputError("Please pass valid integer value for ports") from e
 
 
 def pformat_dataclass(obj, indent="  "):
