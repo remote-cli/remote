@@ -1,5 +1,5 @@
 import logging
-import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -234,16 +234,7 @@ def prepare_shell_command(command: Union[str, Sequence[str]]) -> str:
     if len(command) == 1 and " " in command[0]:
         return command[0]
 
-    result = []
-    for item in command:
-        if not item:
-            continue
-        if re.search(r"\s+", item):
-            result.append(f"'{item}'")
-        else:
-            result.append(item)
-
-    return " ".join(result)
+    return " ".join([shlex.quote(c) for c in command])
 
 
 def pformat_dataclass(obj, indent="  "):

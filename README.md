@@ -10,8 +10,8 @@ on a powerful remote host while you work on the source code locally.
 This process is known as remote execution and can be used to enable remote build capabilities among other things.
 
 When you execute `remote <cmd>`, it will first sync your local workspace to the remote host you selected using `rsync`.
-It will then execute the command `<cmd>` on this host using `ssh` and finally, bring all the created/modified files back to your local workspace. 
-`remote` supports a host of configuration options to allow for complete customization of patterns for files and folders to include during the synchronization process in both directions. 
+It will then execute the command `<cmd>` on this host using `ssh` and finally, bring all the created/modified files back to your local workspace.
+`remote` supports a host of configuration options to allow for complete customization of patterns for files and folders to include during the synchronization process in both directions.
 
 ## System Requirements
 
@@ -19,7 +19,7 @@ The CLI supports **Linux** and **Mac OS X** operating systems
 with **Python 3.6 or higher** installed. You can also use it on **Windows**
 if you have [WSL](https://docs.microsoft.com/en-us/windows/wsl/about) configured.
 
-The remote host must also be running on **Linux** or **Mac OS X**. The local and remote hosts can be running different operating systems. The only requirement is that the remote host must be accessible using `ssh` from the local host. 
+The remote host must also be running on **Linux** or **Mac OS X**. The local and remote hosts can be running different operating systems. The only requirement is that the remote host must be accessible using `ssh` from the local host.
 
 ## Getting Started
 
@@ -105,13 +105,17 @@ You can run each of these commands with `--help` flag to get a list of options a
 
 ## Configuration
 
-Two configuration files control the behavior of `remote`:
+Three configuration files control the behavior of `remote`:
 
+* `~/.config/remote/defaults.toml` is a global config file. It sets options that affect all the workspaces
+  unless they are overwritten by `.remote.toml` file.
 * `.remote.toml` is a workspace config that is expected to be placed in the root of every workspace.
   The `remote` CLI cannot execute any commands remotely until this file is present, or the global config
   overwrites this with `allow_uninitiated_workspaces` option.
-* `~/.config/remote/defaults.toml` is a global config file. It sets options that affect all the workspaces
-  unless they are overwritten by `.remote.toml` file.
+* `.remoteignore.toml` is a workspace config that controls only sync exlude and include patterns
+  and has the highest priority. While the same settings can be specified in the `.remote.toml` file,
+  you can use this file to check in project-specific ignore settings in the VCS because it doesn't contain
+  host-specific information in it.
 
 Both configs use [TOML](https://github.com/toml-lang/toml) format.
 
@@ -149,7 +153,7 @@ exclude = ["src/generated"]
 include = ["build/reports"]
 
 [both]
-include_vsc_ignore_patterns = true
+include_vcs_ignore_patterns = true
 ```
 
 1. `[general]` block controls system-wide behavior for the `remote` CLI.
@@ -209,7 +213,7 @@ include_vsc_ignore_patterns = true
      that matches these patterns won't be synced unless it is explicitly specified in `include`.
    * `include` (optional, defaults to empty list) - a list of rsync-style patterns. Every file in the workspace
      that matches these patterns will be synced even if it matches the `exclude`.
-   * `include_vsc_ignore_patterns` (optional, defaults to `false`) - if `true` and `.gitignore` is present,
+   * `include_vcs_ignore_patterns` (optional, defaults to `false`) - if `true` and `.gitignore` is present,
      all its patterns will be included in the `exclude` list.
 
 ### Workspace Configuration File
@@ -239,7 +243,7 @@ exclude = ["src/generated"]
 include = ["build/reports"]
 
 [both]
-include_vsc_ignore_patterns = true
+include_vcs_ignore_patterns = true
 ```
 
 All the used blocks here are similar to the ones in the global config file. However, you cannot put
@@ -264,7 +268,7 @@ default = true
 exclude = [".git"]
 
 [both]
-include_vsc_ignore_patterns = true
+include_vcs_ignore_patterns = true
 ```
 
 If you want to be able to use the same Linux host in the workspace but you want to add one more and modify some exclude patterns, you can create the following workspace config:
@@ -281,7 +285,7 @@ exclude = ["workspace-specific-dir"]
 include = [".git/hooks"]
 
 [both]
-include_vsc_ignore_patterns = false
+include_vcs_ignore_patterns = false
 ```
 
 As you can see, some block names start with `extends.`. This name tells remote to merge the
@@ -292,6 +296,12 @@ There are a few things to note:
 * If both workspace-level and global configs define a default host, the workspace-level config wins
 * Hosts ordering is preserver, globally configured hosts always go first.
 * If an option value is a list (e.g. `exclude`), it is extended. Otherwise, the value is overwritten.
+
+### Workspace Files Sync Configuration File
+
+`.remoteignore.toml` files is similar to `.remote.toml`, but only supports `push`, `pull`, `both`,
+`extends.push`, `extends.pull` and `extends.both` blocks. It also cannot be used to identify
+the workspace root.
 
 ### .remoteenv file
 
@@ -347,13 +357,13 @@ After it, you can open the code in any editor or IDE you like. If you prefer VSC
 Before submitting your pull request, please check it by running:
 
 ```bash
-flake8 src test && mypy -p remote && black --check -l 120 src test && isort -rc --check-only src test && pytest
+flake8 src test && mypy -p remote && black --check -l 120 src test && isort --check-only src test && pytest
 ```
 
 If `black` or `isort` fails, you can fix it using the following command:
 
 ```bash
-black -l 120 src test && isort -rc src test
+black -l 120 src test && isort src test
 ```
 
 Don't forget to add changed files to your commit after you do it.

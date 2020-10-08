@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import shlex
 
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -101,7 +102,7 @@ class SyncedWorkspace:
 
     def _generate_command(self, command: str, env: Dict[str, str]) -> str:
         relative_path = self.remote_working_dir.relative_to(self.remote.directory)
-        env_variables = "\n".join([f"export {k}={env[k]}" for k in sorted(env.keys())])
+        env_variables = "\n".join([f"export {shlex.quote(k)}={shlex.quote(env[k])}" for k in sorted(env.keys())])
         if env_variables:
             env_variables += "\n"
 
