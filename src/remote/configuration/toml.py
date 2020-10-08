@@ -7,7 +7,7 @@ import re
 
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, MutableMapping, Optional, Type, TypeVar, Union
 
 import toml
 
@@ -19,6 +19,7 @@ from . import ConfigurationMedium, RemoteConfig, SyncRules, WorkspaceConfig
 from .shared import DEFAULT_REMOTE_ROOT, HOST_REGEX, hash_path
 
 WORKSPACE_CONFIG = ".remote.toml"
+WORKSPACE_SYNC_CONFIG = ".remoteignore.toml"
 GLOBAL_CONFIG = ".config/remote/defaults.toml"
 
 
@@ -47,20 +48,27 @@ class ConnectionConfig(ConfigModel):
 class SyncRulesConfig(ConfigModel):
     exclude: List[str] = Field(default_factory=list)
     include: List[str] = Field(default_factory=list)
-    include_vsc_ignore_patterns: Optional[bool] = None
+    include_vcs_ignore_patterns: Optional[bool] = None
 
     def extend(self, other: "SyncRulesConfig") -> None:
         self.exclude.extend(other.exclude)
         self.include.extend(other.include)
-        if other.include_vsc_ignore_patterns is not None:
-            self.include_vsc_ignore_patterns = other.include_vsc_ignore_patterns
+        if other.include_vcs_ignore_patterns is not None:
+            self.include_vcs_ignore_patterns = other.include_vcs_ignore_patterns
 
 
-class WorkCycleConfig(ConfigModel):
-    hosts: Optional[List[ConnectionConfig]] = None
+class AggregateSyncRulesConfig(ConfigModel):
     push: Optional[SyncRulesConfig] = None
     pull: Optional[SyncRulesConfig] = None
     both: Optional[SyncRulesConfig] = None
+
+
+class LocalSyncRulesConfig(AggregateSyncRulesConfig):
+    extends: Optional[AggregateSyncRulesConfig] = None
+
+
+class WorkCycleConfig(AggregateSyncRulesConfig):
+    hosts: Optional[List[ConnectionConfig]] = None
 
 
 def hosts_can_have_only_one_default(cls, hosts):
@@ -99,7 +107,10 @@ class LocalConfig(WorkCycleConfig):
     hosts_default = validator("hosts", allow_reuse=True)(hosts_can_have_only_one_default)
 
 
-def _load_file(cls, path: Path):
+T = TypeVar("T", bound=ConfigModel)
+
+
+def _load_file(cls: Type[T], path: Path) -> T:
     if not path.exists():
         return cls()
 
@@ -108,6 +119,10 @@ def _load_file(cls, path: Path):
             config = toml.load(f)
         except ValueError as e:
             raise ConfigurationError(f"TOML file {path} is unparasble: {e}") from e
+
+    # In previous versions of remote, `include_vcs_ignore_patterns` key was named with a typo
+    # Now we need to check if config is using the old name to maintain backward compatibility
+    _backward_compatible_sanitize(config, {"include_vsc_ignore_patterns": "include_vcs_ignore_patterns"})
 
     try:
         return cls.parse_obj(config)
@@ -122,9 +137,22 @@ def _load_file(cls, path: Path):
         raise ConfigurationError(f"Invalid value in configuration file {path}:\n{msg}") from e
 
 
+def _backward_compatible_sanitize(data_dict: MutableMapping[str, Any], replacements: Dict[str, str]) -> None:
+    for key in list(data_dict.keys()):
+        if isinstance(data_dict[key], dict):
+            _backward_compatible_sanitize(data_dict[key], replacements)
+        if key in replacements:
+            data_dict[replacements[key]] = data_dict.pop(key)
+
+
 def load_global_config() -> GlobalConfig:
     config_file = Path.home() / GLOBAL_CONFIG
     return _load_file(GlobalConfig, config_file)
+
+
+def load_local_ignores_config(workspace_root: Path) -> LocalSyncRulesConfig:
+    config_file = workspace_root / WORKSPACE_SYNC_CONFIG
+    return _load_file(LocalSyncRulesConfig, config_file)
 
 
 def load_local_config(workspace_root: Path) -> LocalConfig:
@@ -146,21 +174,29 @@ def load_local_config(workspace_root: Path) -> LocalConfig:
     return config
 
 
-def _merge_field(field: str, global_config: GlobalConfig, local_config: LocalConfig) -> Any:
+def _merge_field(
+    field: str, global_config: GlobalConfig, local_config: LocalConfig, local_ignores_config: LocalSyncRulesConfig
+) -> Any:
     result = getattr(global_config, field)
-    local_result = getattr(local_config, field)
-    if local_result is not None:
-        result = local_result
 
-    if local_config.extends is None:
-        return result
+    cfg: Union[LocalConfig, LocalSyncRulesConfig]
+    for cfg in (local_config, local_ignores_config):  # type: ignore
+        if not hasattr(cfg, field):
+            continue
 
-    extension = getattr(local_config.extends, field)
-    if extension is not None:
-        if result is None:
-            result = extension
-        else:
-            result.extend(extension)
+        local_result = getattr(cfg, field)
+        if local_result is not None:
+            result = local_result
+
+        if cfg.extends is None:
+            continue
+
+        extension = getattr(cfg.extends, field)
+        if extension is not None:
+            if result is None:
+                result = extension
+            else:
+                result.extend(extension)
 
     return result
 
@@ -171,7 +207,7 @@ def _get_exclude(sync_rules: Optional[SyncRulesConfig], workspace_root: Path) ->
     exclude = sync_rules.exclude
 
     gitignore = workspace_root / ".gitignore"
-    if sync_rules.include_vsc_ignore_patterns and gitignore.exists():
+    if sync_rules.include_vcs_ignore_patterns and gitignore.exists():
         with gitignore.open() as f:
             for line in f.readlines():
                 line = line.strip()
@@ -225,10 +261,14 @@ class TomlConfigurationMedium(ConfigurationMedium):
 
     def load_config(self, workspace_root: Path) -> WorkspaceConfig:
         local_config = load_local_config(workspace_root)
+        local_ignores_config = load_local_ignores_config(workspace_root)
 
         # We might accidentally modify config value, so we need to create a copy of it
         global_config = self.global_config.copy()
-        config_dict = {field: _merge_field(field, global_config, local_config) for field in WorkCycleConfig.__fields__}
+        config_dict = {
+            field: _merge_field(field, global_config, local_config, local_ignores_config)
+            for field in WorkCycleConfig.__fields__
+        }
         merged_config = WorkCycleConfig.parse_obj(config_dict)
 
         if merged_config.hosts is None:
