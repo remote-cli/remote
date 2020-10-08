@@ -1,3 +1,9 @@
+1.8.0
+-----
+* Introduce `.remoteignore.toml` file
+* Fix typo in `include_vcs_ignore_patterns` option name
+* Start using `shlex` to escape the shell command
+
 1.7.0
 -----
 * improve the internal port forwarding API
