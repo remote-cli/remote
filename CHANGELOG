@@ -1,3 +1,7 @@
+1.9.1
+-----
+* fixed 1.9.0 release
+
 1.9.0
 -----
 * improve sync include/exclude API
