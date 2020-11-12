@@ -51,7 +51,7 @@ def _measure_duration(operation: str):
 
 
 @dataclass(frozen=True)
-class ForwardingOptions:
+class ForwardingOption:
     """Port forwarding options for ssh"""
 
     remote_port: int
@@ -60,7 +60,7 @@ class ForwardingOptions:
     local_interface: Optional[str] = None
 
     @classmethod
-    def from_string(cls, port_args: str) -> "ForwardingOptions":
+    def from_string(cls, port_args: str) -> "ForwardingOption":
         """Parse port values from the user input.
         :param host: the input string from port tunnelling option.
         :returns: A tuple of remote port, local port.
@@ -103,7 +103,7 @@ class Ssh:
     verbosity_level: VerbosityLevel = VerbosityLevel.QUIET
     use_gssapi_auth: bool = True
     disable_password_auth: bool = True
-    local_port_forwarding: List[ForwardingOptions] = field(default_factory=list)
+    local_port_forwarding: List[ForwardingOption] = field(default_factory=list)
     communication: CommunicationOptions = CommunicationOptions()
 
     def generate_command(self) -> List[str]:

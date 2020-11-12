@@ -7,7 +7,7 @@ import pytest
 from pytest import raises
 
 from remote.exceptions import InvalidInputError, RemoteConnectionError, RemoteExecutionError
-from remote.util import ForwardingOptions, Ssh, VerbosityLevel, _temp_file, prepare_shell_command, rsync
+from remote.util import ForwardingOption, Ssh, VerbosityLevel, _temp_file, prepare_shell_command, rsync
 
 
 def test_temp_file():
@@ -147,7 +147,7 @@ def test_rsync_always_removes_temporary_files(mock_temp_file, mock_run, returnco
         (Ssh("host", disable_password_auth=False), "ssh -tKq"),
         (Ssh("host", verbosity_level=VerbosityLevel.DEFAULT), "ssh -tK -o BatchMode=yes"),
         (
-            Ssh("host", verbosity_level=VerbosityLevel.DEFAULT, local_port_forwarding=[ForwardingOptions(1234, 4312)]),
+            Ssh("host", verbosity_level=VerbosityLevel.DEFAULT, local_port_forwarding=[ForwardingOption(1234, 4312)]),
             "ssh -tK -o BatchMode=yes -L 4312:localhost:1234",
         ),
         (
@@ -155,8 +155,8 @@ def test_rsync_always_removes_temporary_files(mock_temp_file, mock_run, returnco
                 "host",
                 verbosity_level=VerbosityLevel.DEFAULT,
                 local_port_forwarding=[
-                    ForwardingOptions(1234, 4312, "0.0.0.0"),
-                    ForwardingOptions(5678, 8756, "[::]"),
+                    ForwardingOption(1234, 4312, "0.0.0.0"),
+                    ForwardingOption(5678, 8756, "[::]"),
                 ],
             ),
             "ssh -tK -o BatchMode=yes -L 4312:0.0.0.0:1234 -L '8756:[::]:5678'",
@@ -184,20 +184,20 @@ def test_ssh_gen_command(ssh, expected_cmd):
 
 
 @pytest.mark.parametrize(
-    "ports, expected_command_run",
+    "port, expected_command_run",
     [
         (None, ["ssh", "-tKq", "-o", "BatchMode=yes", "my-host.example.com", "exit 0"]),
         (
-            ForwardingOptions(5000, 5005),
+            ForwardingOption(5000, 5005),
             ["ssh", "-tKq", "-o", "BatchMode=yes", "-L", "5005:localhost:5000", "my-host.example.com", "exit 0"],
         ),
     ],
 )
 @patch("remote.util.subprocess.run")
-def test_ssh_execute(mock_run, ports, expected_command_run):
+def test_ssh_execute(mock_run, port, expected_command_run):
     mock_run.return_value = MagicMock(returncode=0)
 
-    ssh = Ssh("my-host.example.com", local_port_forwarding=[ports] if ports else [])
+    ssh = Ssh("my-host.example.com", local_port_forwarding=[port] if port else [])
     code = ssh.execute("exit 0")
 
     assert code == 0
@@ -259,8 +259,8 @@ def test_prepare_shell_command(command, expected):
 @pytest.mark.parametrize(
     "port_value, expected_value, exception_raised",
     [
-        ("5000", ForwardingOptions(5000, 5000), None),
-        ("5000:5200", ForwardingOptions(5000, 5200), None),
+        ("5000", ForwardingOption(5000, 5000), None),
+        ("5000:5200", ForwardingOption(5000, 5200), None),
         ("bar:foo", None, InvalidInputError),
         ("2.5:100", None, InvalidInputError),
         ("2.6:32:25", None, InvalidInputError),
@@ -270,7 +270,7 @@ def test_prepare_shell_command(command, expected):
 def test_parse_ports(port_value, expected_value, exception_raised):
     if exception_raised:
         with raises(exception_raised):
-            ForwardingOptions.from_string(port_value)
+            ForwardingOption.from_string(port_value)
     else:
-        ports = ForwardingOptions.from_string(port_value)
-        assert expected_value == ports
+        port = ForwardingOption.from_string(port_value)
+        assert expected_value == port

@@ -7,7 +7,7 @@ import pytest
 
 from remote.configuration import RemoteConfig
 from remote.exceptions import InvalidRemoteHostLabel
-from remote.util import CommunicationOptions, ForwardingOptions
+from remote.util import CommunicationOptions, ForwardingOption
 from remote.workspace import CompiledSyncRules, SyncedWorkspace
 
 
@@ -281,7 +281,7 @@ def test_execute_with_port_forwarding(mock_run, workspace):
 
     code = workspace.execute(
         ["echo", "Hello World!"],
-        ports=[ForwardingOptions(5005, 5000)],
+        ports=[ForwardingOption(5005, 5000)],
     )
     mock_run.assert_called_once_with(
         [
@@ -315,7 +315,7 @@ def test_execute_with_custom_port(mock_run, workspace):
     workspace.remote.port = 4321
     code = workspace.execute(
         ["echo", "Hello World!"],
-        ports=[ForwardingOptions(5005, 5000, local_interface="0.0.0.0")],
+        ports=[ForwardingOption(5005, 5000, local_interface="0.0.0.0")],
     )
     mock_run.assert_called_once_with(
         [
@@ -447,7 +447,7 @@ def test_execute_and_sync_with_port_forwarding(mock_run, workspace):
 
     code = workspace.execute_in_synced_env(
         ["echo", "Hello World!"],
-        ports=[ForwardingOptions(5005, 5000)],
+        ports=[ForwardingOption(5005, 5000)],
     )
     mock_run.assert_has_calls(
         [

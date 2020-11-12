@@ -15,7 +15,7 @@ from .configuration.discovery import get_configuration_medium, load_cwd_workspac
 from .configuration.shared import HOST_REGEX, PATH_REGEX
 from .exceptions import InvalidInputError, RemoteError
 from .explain import explain
-from .util import CommunicationOptions, ForwardingOptions
+from .util import CommunicationOptions, ForwardingOption
 from .workspace import SyncedWorkspace
 
 BASE_LOGGING_FORMAT = "%(message)s"
@@ -273,7 +273,7 @@ def remote(
     if verbose:
         logging.basicConfig(level=logging.INFO, format=BASE_LOGGING_FORMAT)
 
-    ports = [ForwardingOptions.from_string(port_arg) for port_arg in port_args]
+    ports = [ForwardingOption.from_string(port_arg) for port_arg in port_args]
 
     if multi and label:
         raise InvalidInputError("--multi and --label options cannot be used together")
