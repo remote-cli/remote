@@ -294,7 +294,10 @@ def remote(
                     # If the logs are enabled and they are inside the workspace root, we need to exclude them from
                     # syncing
                     relative_path = log_dir.relative_to(workspace.local_root)
-                    workspace.ignores.add([f"{relative_path}/*_output.log"])
+
+                    log_path = f"{relative_path}/*_output.log"
+                    workspace.pull_rules.excludes.append(log_path)
+                    workspace.push_rules.excludes.append(log_path)
                 except ValueError:
                     # Value error means that logs are placed outside of the workspace root
                     pass

@@ -8,7 +8,7 @@ import pytest
 from remote.configuration import RemoteConfig
 from remote.exceptions import InvalidRemoteHostLabel
 from remote.util import CommunicationOptions, ForwardingOptions
-from remote.workspace import SyncedWorkspace
+from remote.workspace import CompiledSyncRules, SyncedWorkspace
 
 
 def test_create_workspace(workspace_config):
@@ -18,7 +18,8 @@ def test_create_workspace(workspace_config):
     assert workspace.local_root == workspace_config.root
     assert workspace.remote == workspace_config.configurations[0]
     assert workspace.remote_working_dir == workspace_config.configurations[0].directory / "foo" / "bar"
-    assert workspace.ignores == workspace_config.ignores
+    assert workspace.pull_rules == CompiledSyncRules([], [])
+    assert workspace.push_rules == CompiledSyncRules([], ["/.remoteenv"])
 
 
 def test_create_workspace_selects_proper_remote_host(workspace_config):
@@ -45,7 +46,8 @@ def test_create_workspace_selects_proper_remote_host(workspace_config):
     assert workspace.local_root == workspace_config.root
     assert workspace.remote == workspace_config.configurations[1]
     assert workspace.remote_working_dir == workspace_config.configurations[1].directory / "foo" / "bar"
-    assert workspace.ignores == workspace_config.ignores
+    assert workspace.pull_rules == CompiledSyncRules([], [])
+    assert workspace.push_rules == CompiledSyncRules([], ["/.remoteenv"])
     assert workspace.remote.label == "bar"
 
     # now it should select host from override
@@ -53,14 +55,16 @@ def test_create_workspace_selects_proper_remote_host(workspace_config):
     assert workspace.local_root == workspace_config.root
     assert workspace.remote == workspace_config.configurations[0]
     assert workspace.remote_working_dir == workspace_config.configurations[0].directory / "foo" / "bar"
-    assert workspace.ignores == workspace_config.ignores
+    assert workspace.pull_rules == CompiledSyncRules([], [])
+    assert workspace.push_rules == CompiledSyncRules([], ["/.remoteenv"])
 
     # now it should select from the label passed
     workspace = SyncedWorkspace.from_config(workspace_config, working_dir, remote_host_id="foo")
     assert workspace.local_root == workspace_config.root
     assert workspace.remote == workspace_config.configurations[2]
     assert workspace.remote_working_dir == workspace_config.configurations[2].directory / "foo" / "bar"
-    assert workspace.ignores == workspace_config.ignores
+    assert workspace.pull_rules == CompiledSyncRules([], [])
+    assert workspace.push_rules == CompiledSyncRules([], ["/.remoteenv"])
     assert workspace_config.configurations[2].label == "foo"
 
     # now it should raise an exception as the label is not present
