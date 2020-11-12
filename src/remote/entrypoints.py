@@ -234,6 +234,7 @@ def remote_set(index: int):
     "--tunnel",
     "port_args",
     type=str,
+    multiple=True,
     help="Enable local port forwarding. Pass value as <remote port>:<local port>. \
 If local port is not passed, the local port value would be set to <remote port> value by default",
 )
@@ -260,7 +261,7 @@ def remote(
     mirror: bool,
     verbose: bool,
     e: bool,
-    port_args: Optional[str],
+    port_args: List[str],
     label: Optional[str],
     stream_changes: bool,
     log: Optional[str],
@@ -272,7 +273,7 @@ def remote(
     if verbose:
         logging.basicConfig(level=logging.INFO, format=BASE_LOGGING_FORMAT)
 
-    ports = ForwardingOptions.from_string(port_args) if port_args else None
+    ports = [ForwardingOptions.from_string(port_arg) for port_arg in port_args]
 
     if multi and label:
         raise InvalidInputError("--multi and --label options cannot be used together")

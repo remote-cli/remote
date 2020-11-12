@@ -6,7 +6,7 @@ import tempfile
 import time
 
 from contextlib import contextmanager
-from dataclasses import dataclass, fields, is_dataclass
+from dataclasses import dataclass, field, fields, is_dataclass
 from enum import IntEnum
 from pathlib import Path
 from typing import List, Optional, Sequence, TextIO, Union
@@ -103,7 +103,7 @@ class Ssh:
     verbosity_level: VerbosityLevel = VerbosityLevel.QUIET
     use_gssapi_auth: bool = True
     disable_password_auth: bool = True
-    local_port_forwarding: Optional[ForwardingOptions] = None
+    local_port_forwarding: List[ForwardingOptions] = field(default_factory=list)
     communication: CommunicationOptions = CommunicationOptions()
 
     def generate_command(self) -> List[str]:
@@ -124,8 +124,8 @@ class Ssh:
         if self.port and self.port != DEFAULT_SSH_PORT:
             command.extend(("-p", str(self.port)))
 
-        if self.local_port_forwarding:
-            command.extend(("-L", self.local_port_forwarding.to_ssh_string()))
+        for port in self.local_port_forwarding:
+            command.extend(("-L", port.to_ssh_string()))
 
         return command
 

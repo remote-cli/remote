@@ -147,16 +147,19 @@ def test_rsync_always_removes_temporary_files(mock_temp_file, mock_run, returnco
         (Ssh("host", disable_password_auth=False), "ssh -tKq"),
         (Ssh("host", verbosity_level=VerbosityLevel.DEFAULT), "ssh -tK -o BatchMode=yes"),
         (
-            Ssh("host", verbosity_level=VerbosityLevel.DEFAULT, local_port_forwarding=ForwardingOptions(1234, 4312)),
+            Ssh("host", verbosity_level=VerbosityLevel.DEFAULT, local_port_forwarding=[ForwardingOptions(1234, 4312)]),
             "ssh -tK -o BatchMode=yes -L 4312:localhost:1234",
         ),
         (
             Ssh(
                 "host",
                 verbosity_level=VerbosityLevel.DEFAULT,
-                local_port_forwarding=ForwardingOptions(1234, 4312, "0.0.0.0"),
+                local_port_forwarding=[
+                    ForwardingOptions(1234, 4312, "0.0.0.0"),
+                    ForwardingOptions(5678, 8756, "[::]"),
+                ],
             ),
-            "ssh -tK -o BatchMode=yes -L 4312:0.0.0.0:1234",
+            "ssh -tK -o BatchMode=yes -L 4312:0.0.0.0:1234 -L '8756:[::]:5678'",
         ),
         (Ssh("host", verbosity_level=VerbosityLevel.VERBOSE), "ssh -tKv -o BatchMode=yes"),
         (Ssh("host", verbosity_level=VerbosityLevel.VERBOSE, use_gssapi_auth=False), "ssh -tv -o BatchMode=yes"),
@@ -194,7 +197,7 @@ def test_ssh_gen_command(ssh, expected_cmd):
 def test_ssh_execute(mock_run, ports, expected_command_run):
     mock_run.return_value = MagicMock(returncode=0)
 
-    ssh = Ssh("my-host.example.com", local_port_forwarding=ports)
+    ssh = Ssh("my-host.example.com", local_port_forwarding=[ports] if ports else [])
     code = ssh.execute("exit 0")
 
     assert code == 0
