@@ -16,6 +16,20 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class CompiledSyncRules:
+    excludes: List[str]
+    includes: List[str]
+
+    @classmethod
+    def push(cls, excludes: SyncRules, includes: SyncRules):
+        return cls(excludes=excludes.compile_push(), includes=includes.compile_push())
+
+    @classmethod
+    def pull(cls, excludes: SyncRules, includes: SyncRules):
+        return cls(excludes=excludes.compile_pull(), includes=includes.compile_pull())
+
+
+@dataclass
 class SyncedWorkspace:
     """A configured remote execution workspace"""
 
@@ -26,9 +40,9 @@ class SyncedWorkspace:
     # remote directory to use as working directory, relative to users home directory
     remote_working_dir: Path
     # sync ignore file patterns
-    ignores: SyncRules
+    push_rules: CompiledSyncRules
     # sync include file patterns
-    includes: SyncRules
+    pull_rules: CompiledSyncRules
     # process communication options
     communication: CommunicationOptions = CommunicationOptions()
 
@@ -61,12 +75,14 @@ class SyncedWorkspace:
         remote_config = config.configurations[index]
         remote_working_dir = remote_config.directory / working_dir
 
+        push_rules = CompiledSyncRules.push(config.ignores, config.includes)
+        push_rules.includes.append("/.remoteenv")
         return cls(
             local_root=config.root,
             remote=remote_config,
             remote_working_dir=remote_working_dir,
-            ignores=config.ignores,
-            includes=config.includes,
+            push_rules=push_rules,
+            pull_rules=CompiledSyncRules.pull(config.ignores, config.includes),
         )
 
     @classmethod
@@ -220,9 +236,6 @@ cd {relative_path}
 
         src = f"{self.local_root}/"
         dst = f"{self.remote.host}:{self.remote.directory}"
-        ignores = self.ignores.compile_push()
-        includes = self.includes.compile_push()
-        includes.append("/.remoteenv")
         # If remote directory structure is deep and it was deleted, we need an rsync-path to recreate it before copying
         extra_args = ["--rsync-path", f"mkdir -p {self.remote.directory} && rsync"]
         rsync(
@@ -234,8 +247,8 @@ cd {relative_path}
             dry_run=dry_run,
             delete=True,  # We want to delete the remote file if it's local copy was removed
             mirror=mirror,
-            includes=includes,
-            excludes=ignores,
+            includes=self.push_rules.includes,
+            excludes=self.push_rules.excludes,
             extra_args=extra_args,
             communication=self.communication,
         )
@@ -271,17 +284,15 @@ cd {relative_path}
 
         src = f"{self.remote.host}:{self.remote.directory}/"
         dst = str(self.local_root)
-        ignores = self.ignores.compile_pull()
-        includes = self.includes.compile_pull()
         rsync(
             src,
             dst,
             self.get_ssh_for_rsync(),
             info=info,
             verbose=verbose,
-            includes=includes,
+            includes=self.pull_rules.includes,
             dry_run=dry_run,
-            excludes=ignores,
+            excludes=self.pull_rules.excludes,
             communication=self.communication,
         )
 
