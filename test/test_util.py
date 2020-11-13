@@ -154,10 +154,7 @@ def test_rsync_always_removes_temporary_files(mock_temp_file, mock_run, returnco
             Ssh(
                 "host",
                 verbosity_level=VerbosityLevel.DEFAULT,
-                local_port_forwarding=[
-                    ForwardingOption(1234, 4312, "0.0.0.0"),
-                    ForwardingOption(5678, 8756, "[::]"),
-                ],
+                local_port_forwarding=[ForwardingOption(1234, 4312, "0.0.0.0"), ForwardingOption(5678, 8756, "[::]")],
             ),
             "ssh -tK -o BatchMode=yes -L 4312:0.0.0.0:1234 -L '8756:[::]:5678'",
         ),

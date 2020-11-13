@@ -242,7 +242,7 @@ def pformat_dataclass(obj, indent="  "):
     result = []
 
     has_dataclass_fields = False
-    for field in fields(obj):
+    for field in fields(obj):  # noqa: F402 'field' shadows the import
         value = getattr(obj, field.name)
         if is_dataclass(value):
             str_value = "\n" + pformat_dataclass(value, indent + "  ")
