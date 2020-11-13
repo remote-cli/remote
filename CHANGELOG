@@ -1,3 +1,7 @@
+1.10.0
+------
+* Allow providing multiple ports for tunneling
+
 1.9.1
 -----
 * fixed 1.9.0 release
