@@ -10,7 +10,7 @@ from .configuration import RemoteConfig, SyncRules, WorkspaceConfig
 from .configuration.discovery import load_cwd_workspace_config
 from .exceptions import InvalidRemoteHostLabel
 from .file_changes import execute_on_file_change
-from .util import CommunicationOptions, ForwardingOptions, Ssh, VerbosityLevel, prepare_shell_command, rsync
+from .util import CommunicationOptions, ForwardingOption, Ssh, VerbosityLevel, prepare_shell_command, rsync
 
 logger = logging.getLogger(__name__)
 
@@ -102,12 +102,12 @@ class SyncedWorkspace:
 
         return workspaces
 
-    def get_ssh(self, port_forwarding: Optional[ForwardingOptions] = None, verbose: bool = False):
+    def get_ssh(self, port_forwarding: List[ForwardingOption] = [], verbose: bool = False):
         return Ssh(
             self.remote.host,
             port=self.remote.port,
             use_gssapi_auth=self.remote.supports_gssapi,
-            local_port_forwarding=port_forwarding,
+            local_port_forwarding=list(port_forwarding),
             verbosity_level=VerbosityLevel.VERBOSE if verbose else VerbosityLevel.QUIET,
             communication=self.communication,
         )
@@ -138,7 +138,7 @@ cd {relative_path}
         verbose: bool = False,
         dry_run: bool = False,
         mirror: bool = False,
-        ports: Optional[ForwardingOptions] = None,
+        ports: List[ForwardingOption] = [],
         stream_changes: bool = False,
         env: Optional[Dict[str, str]] = None,
     ) -> int:
@@ -178,7 +178,7 @@ cd {relative_path}
         dry_run: bool = False,
         raise_on_error: bool = True,
         verbose: bool = False,
-        ports: Optional[ForwardingOptions] = None,
+        ports: List[ForwardingOption] = [],
         stream_changes: bool = False,
         env: Optional[Dict[str, str]] = None,
     ) -> int:

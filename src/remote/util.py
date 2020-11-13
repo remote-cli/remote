@@ -6,7 +6,7 @@ import tempfile
 import time
 
 from contextlib import contextmanager
-from dataclasses import dataclass, fields, is_dataclass
+from dataclasses import dataclass, field, fields, is_dataclass
 from enum import IntEnum
 from pathlib import Path
 from typing import List, Optional, Sequence, TextIO, Union
@@ -51,7 +51,7 @@ def _measure_duration(operation: str):
 
 
 @dataclass(frozen=True)
-class ForwardingOptions:
+class ForwardingOption:
     """Port forwarding options for ssh"""
 
     remote_port: int
@@ -60,7 +60,7 @@ class ForwardingOptions:
     local_interface: Optional[str] = None
 
     @classmethod
-    def from_string(cls, port_args: str) -> "ForwardingOptions":
+    def from_string(cls, port_args: str) -> "ForwardingOption":
         """Parse port values from the user input.
         :param host: the input string from port tunnelling option.
         :returns: A tuple of remote port, local port.
@@ -103,7 +103,7 @@ class Ssh:
     verbosity_level: VerbosityLevel = VerbosityLevel.QUIET
     use_gssapi_auth: bool = True
     disable_password_auth: bool = True
-    local_port_forwarding: Optional[ForwardingOptions] = None
+    local_port_forwarding: List[ForwardingOption] = field(default_factory=list)
     communication: CommunicationOptions = CommunicationOptions()
 
     def generate_command(self) -> List[str]:
@@ -124,8 +124,8 @@ class Ssh:
         if self.port and self.port != DEFAULT_SSH_PORT:
             command.extend(("-p", str(self.port)))
 
-        if self.local_port_forwarding:
-            command.extend(("-L", self.local_port_forwarding.to_ssh_string()))
+        for port in self.local_port_forwarding:
+            command.extend(("-L", port.to_ssh_string()))
 
         return command
 
@@ -242,7 +242,7 @@ def pformat_dataclass(obj, indent="  "):
     result = []
 
     has_dataclass_fields = False
-    for field in fields(obj):
+    for field in fields(obj):  # noqa: F402 'field' shadows the import
         value = getattr(obj, field.name)
         if is_dataclass(value):
             str_value = "\n" + pformat_dataclass(value, indent + "  ")
