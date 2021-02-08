@@ -1,3 +1,7 @@
+1.10.1
+------
+* Enable tunelling in remote-quick
+
 1.10.0
 ------
 * Allow providing multiple ports for tunneling
