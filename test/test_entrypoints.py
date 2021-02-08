@@ -1150,14 +1150,17 @@ def test_remote_port_forwarding_user_input_error(
     "port_value, expected_port_forwarding, expected_exit_code",
     [("5000", "5000:localhost:5000", 0), ("5000:5005", "5005:localhost:5000", 0)],
 )
+@pytest.mark.parametrize(
+    "entrypoint", [entrypoints.remote, entrypoints.remote_quick], ids=["remote", "remote-quick"],
+)
 @patch("remote.util.subprocess.run")
 def test_remote_port_forwarding_successful(
-    mock_run, tmp_workspace, port_value, expected_port_forwarding, expected_exit_code
+    mock_run, tmp_workspace, port_value, expected_port_forwarding, expected_exit_code, entrypoint,
 ):
     mock_run.return_value = Mock(returncode=0)
     runner = CliRunner()
     with cwd(tmp_workspace):
-        result = runner.invoke(entrypoints.remote, ["-t", port_value, "echo test"])
+        result = runner.invoke(entrypoint, ["-t", port_value, "echo test"])
         assert result.exit_code == expected_exit_code
         mock_run.assert_any_call(
             [

@@ -337,15 +337,28 @@ def remote(
 
 
 @click.command(context_settings=EXECUTION_CONTEXT_SETTINGS)
+@click.option(
+    "-t",
+    "--tunnel",
+    "port_args",
+    type=str,
+    multiple=True,
+    help="Enable local port forwarding. Pass value as <remote port>:<local port>. \
+If local port is not passed, the local port value would be set to <remote port> value by default",
+)
 @click.option("-l", "--label", help="use the host that has corresponding label for the remote execution")
 @click.argument("command", nargs=-1, required=True)
 @log_exceptions
-def remote_quick(command: List[str], label: Optional[str]):
-    """Execute the COMMAND remotely"""
+def remote_quick(
+    command: List[str], port_args: List[str], label: Optional[str],
+):
+    """Execute the COMMAND remotely, without syncing any files"""
     check_command(command)
 
+    ports = [ForwardingOption.from_string(port_arg) for port_arg in port_args]
+
     workspace = SyncedWorkspace.from_cwd(int_or_str_label(label))
-    code = workspace.execute(command, raise_on_error=False)
+    code = workspace.execute(command, ports=ports, raise_on_error=False)
     sys.exit(code)
 
 
