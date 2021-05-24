@@ -55,7 +55,7 @@ Don't forget to replace the `/home/username` above with the actual path to your 
 ### Configuring the remote host
 
 `remote` CLI needs to be able to establish a passwordless SSH connection to the remote host.
-Please run `ssh -o BatchMode yes <your-host> echo OK` to confirm that everything is ready for you.
+Please run `ssh -o BatchMode=yes <your-host> echo OK` to confirm that everything is ready for you.
 If this command fails, please go through [SSH guide](https://www.ssh.com/ssh/keygen/) to set up
 SSH keys locally and remotely.
 
