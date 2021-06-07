@@ -352,12 +352,12 @@ def test_execute_with_custom_env(mock_run, workspace):
             workspace.remote.host,
             """\
 cd remote/dir
+export OTHER_VAR=meow
+export TEST_VAR=test
 if [ -f .remoteenv ]; then
   source .remoteenv
 fi
 cd foo/bar
-export OTHER_VAR=meow
-export TEST_VAR=test
 echo 'Hello World!'
 """,
         ],
