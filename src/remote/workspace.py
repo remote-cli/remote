@@ -124,11 +124,11 @@ class SyncedWorkspace:
 
         return f"""\
 cd {self.remote.directory}
-if [ -f .remoteenv ]; then
+{env_variables}if [ -f .remoteenv ]; then
   source .remoteenv
 fi
 cd {relative_path}
-{env_variables}{command}
+{command}
 """
 
     def execute_in_synced_env(
