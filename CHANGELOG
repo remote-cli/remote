@@ -1,3 +1,7 @@
+1.11.0
+------
+* Change order of application of API-provided env and user-provided env
+
 1.10.1
 ------
 * Enable tunelling in remote-quick
