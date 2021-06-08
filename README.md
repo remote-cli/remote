@@ -5,9 +5,9 @@
 [![versions](https://img.shields.io/pypi/pyversions/remote-exec.svg)](https://github.com/remote-cli/remote)
 [![license](https://img.shields.io/github/license/remote-cli/remote.svg)](https://github.com/remote-cli/remote/blob/master/LICENSE)
 
-The `remote` CLI lets you execute long or computation-heavy tasks (e.g. compilation, integration tests etc.)
+The `remote` CLI lets you execute long or computation-heavy tasks (e.g., compilation, integration tests, etc.)
 on a powerful remote host while you work on the source code locally.
-This process is known as remote execution and can be used to enable remote build capabilities among other things.
+This process is known as remote execution and can enable remote build capabilities, among other things.
 
 When you execute `remote <cmd>`, it will first sync your local workspace to the remote host you selected using `rsync`.
 It will then execute the command `<cmd>` on this host using `ssh` and finally, bring all the created/modified files back to your local workspace.
@@ -112,7 +112,7 @@ Three configuration files control the behavior of `remote`:
 * `.remote.toml` is a workspace config that is expected to be placed in the root of every workspace.
   The `remote` CLI cannot execute any commands remotely until this file is present, or the global config
   overwrites this with `allow_uninitiated_workspaces` option.
-* `.remoteignore.toml` is a workspace config that controls only sync exlude and include patterns
+* `.remoteignore.toml` is a workspace config that controls only sync exclude and include patterns
   and has the highest priority. While the same settings can be specified in the `.remote.toml` file,
   you can use this file to check in project-specific ignore settings in the VCS because it doesn't contain
   host-specific information in it.
@@ -160,38 +160,38 @@ include_vcs_ignore_patterns = true
 
    Reference:
 
-   * `allow_uninitiated_workspaces` (optional, defaults to `false`) - if this flag is set to `true` and
+   * `allow_uninitiated_workspaces` (optional, defaults to `false`) - If this flag is set to `true` and
      the global config contains at least one remote host, `remote` will treat its current working directory
      as a workspace root even if it doesn't have `.remote.toml` file in it.
 
-     **Warning:** if this option is on and you run `remote` in the subdirectory of already configured workspace,
+     **Warning:** If this option is on and you run `remote` in the subdirectory of an already configured workspace,
      `remote` will ignore workspaces configuration and treat subdirectory as a separate workspace root.
 
-   * `remote_root` (optional, defaults to `".remotes"`) - a default directory on the remote machine that
+   * `remote_root` (optional, defaults to `".remotes"`) - The default directory on the remote machine that
      will be used to store synced workspaces. The path is expected to be relative to the remote user's home
      directory, so `.remotes` will resolve in `/home/username/.remotes`.
      If the workspace-level configuration sets the `directory` for a host, this setting will be ignored.
 
    * `use_relative_remote_paths` (optional, defaults to `false`)
-     * if set to `false` all the workspaces will be stored in the `remote_root` of the target host in a flat
+     * If set to `false`, all the workspaces will be stored in the `remote_root` of the target host in a flat
        structure. Each directory will have a name like `<workspace_name>_<workspace_path_hash>`.
-     * if set to `false`, the remote path will be placed in `remote_root` tree like it was placed in the users
+     * If set to `false`, the remote path will be placed in the `remote_root` tree like it was placed in the user's
        home directory tree locally. Some examples:
-       * If local path is `/home/username/projects/work/project_name`, the remote path will be
+       * If the local path is `/home/username/projects/work/project_name`, the remote path will be
          `/home/username/.remotes/projects/work/project_name`
-       * If local path is `/tmp/project_name`, the remote path will be
+       * If the local path is `/tmp/project_name`, the remote path will be
          `/home/username/.remotes/tmp/project_name`
 
 2. `[[hosts]]` block lists all the remote hosts available for the workspaces. Used when the workspace
    configuration doesn't overwrite it.
 
    You can provide multiple hosts in this block, but only one will be selected when you execute `remote`.
-   It will be either the host that is marked by `default = true` or the first one in the list if no
+   It would be either the host that is marked by `default = true` or the first one in the list if no
    default was set explicitly.
 
    You can run most of the commands with `--label label|number` or `-l label|number` option to run a
-   command on non-default host. `label` here is the text label you put in the config file, `number` is
-   a number of required host in the hosts list, starting from 1.
+   command on the non-default host. `label` here is the text label you put in the config file, `number` is
+   a number of required host in the hosts' list, starting from 1.
 
    Reference:
 
@@ -271,7 +271,7 @@ exclude = [".git"]
 include_vcs_ignore_patterns = true
 ```
 
-If you want to be able to use the same Linux host in the workspace but you want to add one more and modify some exclude patterns, you can create the following workspace config:
+If you want to be able to use the same Linux host in the workspace, but you want to add one more and modify some exclude patterns, you can create the following workspace config:
 
 ```toml
 [[extends.hosts]]
@@ -294,7 +294,7 @@ workspace and global settings.
 There are a few things to note:
 
 * If both workspace-level and global configs define a default host, the workspace-level config wins
-* Hosts ordering is preserver, globally configured hosts always go first.
+* Hosts ordering is preserved, and globally configured hosts always go first.
 * If an option value is a list (e.g. `exclude`), it is extended. Otherwise, the value is overwritten.
 
 ### Workspace Files Sync Configuration File
@@ -328,7 +328,7 @@ There are two ways of solving this problem:
    remote python3 -m venv env
    echo '. env/bin/activate' >> .remoteenv
 
-   # starting from this point all python commands will be executed in virtualenv remotely
+   # starting from this point, all python commands will be executed in virtualenv remotely
    # This should print virtualenv's python path
    remote which python
    remote pip install -e .
