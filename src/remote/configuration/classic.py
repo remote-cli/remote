@@ -55,7 +55,7 @@ def _extract_shell_info(line: str, env_vars: List[str]) -> Tuple[str, str]:
 
         index += 1
     """
-    env = dict(i.split("=", 1) for i in env_vars)
+    env = dict(i.partition("=")[::2] for i in env_vars if "=" in i)
     print(env)
     # TODO: these shell types are not used in new implementation, need to remove them
     shell = env.pop("RSHELL", DEFAULT_SHELL)
