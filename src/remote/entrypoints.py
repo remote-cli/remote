@@ -15,7 +15,7 @@ from .configuration.discovery import get_configuration_medium, load_cwd_workspac
 from .configuration.shared import HOST_REGEX, PATH_REGEX
 from .exceptions import InvalidInputError, RemoteError
 from .explain import explain
-from .util import CommunicationOptions, ForwardingOption
+from .util import CommunicationOptions, ForwardingOption, shell_quote
 from .workspace import SyncedWorkspace
 
 BASE_LOGGING_FORMAT = "%(message)s"
@@ -100,7 +100,7 @@ def _add_remote_host(config: WorkspaceConfig, connection: str):
         click.secho("Please check if host is accessible via SSH", fg="yellow")
         sys.exit(1)
 
-    click.echo(f"Created remote directory at {workspace.remote.host}:{workspace.remote.directory}")
+    click.echo(f"Created remote directory at {workspace.remote.host}:{shell_quote(workspace.remote.directory)}")
     click.echo("Remote is configured and ready to use")
 
     # No errors when executing the above code means we can save the config

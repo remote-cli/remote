@@ -1,6 +1,5 @@
 import contextlib
 import logging
-import shlex
 
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -10,7 +9,7 @@ from .configuration import RemoteConfig, SyncRules, WorkspaceConfig
 from .configuration.discovery import load_cwd_workspace_config
 from .exceptions import InvalidRemoteHostLabel
 from .file_changes import execute_on_file_change
-from .util import CommunicationOptions, ForwardingOption, Ssh, VerbosityLevel, prepare_shell_command, rsync
+from .util import CommunicationOptions, ForwardingOption, Ssh, VerbosityLevel, prepare_shell_command, rsync, shell_quote
 
 logger = logging.getLogger(__name__)
 
@@ -118,16 +117,16 @@ class SyncedWorkspace:
 
     def _generate_command(self, command: str, env: Dict[str, str]) -> str:
         relative_path = self.remote_working_dir.relative_to(self.remote.directory)
-        env_variables = "\n".join([f"export {shlex.quote(k)}={shlex.quote(env[k])}" for k in sorted(env.keys())])
+        env_variables = "\n".join([f"export {shell_quote(k)}={shell_quote(env[k])}" for k in sorted(env.keys())])
         if env_variables:
             env_variables += "\n"
 
         return f"""\
-cd {self.remote.directory}
+cd {shell_quote(self.remote.directory)}
 {env_variables}if [ -f .remoteenv ]; then
   source .remoteenv
 fi
-cd {relative_path}
+cd {shell_quote(relative_path)}
 {command}
 """
 
@@ -231,14 +230,14 @@ cd {relative_path}
             dst_path = self.remote_working_dir / subpath
             dst = f"{self.remote.host}:{dst_path.parent}/"
 
-            extra_args = ["--rsync-path", f"mkdir -p {dst_path.parent} && rsync"]
+            extra_args = ["--rsync-path", f"mkdir -p {shell_quote(dst_path.parent)} && rsync"]
             rsync(src, dst, self.get_ssh_for_rsync(), info=info, verbose=verbose, dry_run=dry_run, extra_args=extra_args, delete=True)
             return
 
         src = f"{self.local_root}/"
         dst = f"{self.remote.host}:{self.remote.directory}"
         # If remote directory structure is deep and it was deleted, we need an rsync-path to recreate it before copying
-        extra_args = ["--rsync-path", f"mkdir -p {self.remote.directory} && rsync"]
+        extra_args = ["--rsync-path", f"mkdir -p {shell_quote(self.remote.directory)} && rsync"]
         rsync(
             src,
             dst,
@@ -299,8 +298,8 @@ cd {relative_path}
 
     def clear_remote(self) -> None:
         """Remove remote directory"""
-        self.execute(f"rm -rf {self.remote.directory}", simple=True)
+        self.execute(f"rm -rf {shell_quote(self.remote.directory)}", simple=True)
 
     def create_remote(self) -> None:
         """Remove remote directory"""
-        self.execute(f"mkdir -p {self.remote.directory}", simple=True)
+        self.execute(f"mkdir -p {shell_quote(self.remote.directory)}", simple=True)

@@ -236,6 +236,9 @@ def prepare_shell_command(command: Union[str, Sequence[str]]) -> str:
 
     return " ".join([shlex.quote(c) for c in command])
 
+def shell_quote(command_arg: Union[str, Path]) -> str:
+    return shlex.quote(str(command_arg))
+
 
 def pformat_dataclass(obj, indent="  "):
     """Return a string with an object contents prettified"""
