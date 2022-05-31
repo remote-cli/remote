@@ -4,8 +4,8 @@ We only mock subprocess calls since we cannot do multi-host testing.
 Some of the test above don't verify much, but they at least ensure that all parts work well together.
 """
 import os
-import sys
 import shlex
+import sys
 import traceback
 
 from contextlib import contextmanager
@@ -111,7 +111,8 @@ def test_remote_init(mock_run, tmp_path):
     with cwd(subdir):
         result = runner.invoke(entrypoints.remote_init, ["test-host.example.com"])
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert "Created remote directory at test-host.example.com:'.remotes/my project_foo'" in result.output
     assert "Remote is configured and ready to use" in result.output
@@ -158,7 +159,8 @@ def test_remote_init_with_dir(mock_run, tmp_path):
     with cwd(subdir):
         result = runner.invoke(entrypoints.remote_init, ["test-host.example.com:.path/test.dir/_test-dir/"])
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert (
         result.output
@@ -211,7 +213,8 @@ def test_remote_init_gitignore(mock_run, tmp_path):
     with cwd(subdir):
         result = runner.invoke(entrypoints.remote_init, ["test-host.example.com:.path/test.dir/_test-dir/"])
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert ".remote*" in (subdir / ".gitignore").read_text()
 
@@ -228,7 +231,8 @@ def test_remote_init_gitignore_no_double_writing(mock_run, tmp_path):
     with cwd(subdir):
         result = runner.invoke(entrypoints.remote_init, ["test-host.example.com:.path/test.dir/_test-dir/"])
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert "some\nbuild\n.remote*\n.gradle\n" == (subdir / ".gitignore").read_text()
 
@@ -321,7 +325,8 @@ def test_remote_add_adds_host(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_add, ["host:directory"])
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert (tmp_workspace / CONFIG_FILE_NAME).exists()
     assert (tmp_workspace / CONFIG_FILE_NAME).read_text() == f"{TEST_CONFIG}\nhost:directory\n"
@@ -346,7 +351,8 @@ def test_remote_add_avoids_duplicates(mock_run, tmp_workspace):
         results.append(runner.invoke(entrypoints.remote_add, ["host:directory"]))
 
     for result in results:
-        if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+        if result.exit_code and result.exc_info:
+            traceback.print_exception(*result.exc_info)
         assert result.exit_code == 0
     assert (tmp_workspace / CONFIG_FILE_NAME).exists()
     assert (tmp_workspace / CONFIG_FILE_NAME).read_text() == f"{TEST_CONFIG}\nhost:directory\n"
@@ -373,9 +379,11 @@ def test_remote_ignore(tmp_workspace):
         # also check there is no duplication
         result_two = runner.invoke(entrypoints.remote_ignore, ["new*.txt", "other-pattern"])
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
-    if result_two.exit_code and result_two.exc_info: traceback.print_exception(*result_two.exc_info)
+    if result_two.exit_code and result_two.exc_info:
+        traceback.print_exception(*result_two.exc_info)
     assert result_two.exit_code == 0
     assert (
         (tmp_workspace / IGNORE_FILE_NAME).read_text()
@@ -403,7 +411,8 @@ def test_remote_host(tmp_workspace):
         # Check that result changes if we change host
         runner.invoke(entrypoints.remote_set, ["2"])
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert result.output == f"{TEST_HOST}\n"
 
@@ -433,7 +442,8 @@ def test_remote(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote, ["echo test >> .file"])
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert mock_run.call_count == 3
     mock_run.assert_has_calls(
@@ -511,7 +521,8 @@ def test_remote_with_output_logging(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote, ["--log", "my_logs", "echo test >> .file"])
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert mock_run.call_count == 3
     mock_run.assert_has_calls(
@@ -597,7 +608,8 @@ def test_remote_mass(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote, ["--multi", "echo test >> .file"])
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert mock_run.call_count == 3
     mock_run.assert_has_calls(
@@ -698,7 +710,8 @@ directory = "{TEST_DIR}"
     with cwd(tmp_path):
         result = runner.invoke(entrypoints.remote, ["-l", label, "echo test >> .file"])
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert mock_run.call_count == 3
     mock_run.assert_has_calls(
@@ -889,7 +902,8 @@ def test_remote_quick(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_quick, ["echo", "test"])
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     mock_run.assert_called_once_with(
         [
@@ -963,7 +977,8 @@ def test_remote_push(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_push)
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     mock_run.assert_called_once_with(
         [
@@ -999,7 +1014,8 @@ def test_remote_push_mass(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_push, "--multi")
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert mock_run.call_count == 2
     mock_run.assert_has_calls(
@@ -1060,7 +1076,8 @@ def test_remote_push_subdirs(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_push, ["foo bar/data", "baz/dist"])
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert mock_run.call_count == 2
     mock_run.assert_has_calls(
@@ -1113,7 +1130,8 @@ def test_remote_pull(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_pull)
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     mock_run.assert_called_once_with(
         [
@@ -1142,7 +1160,8 @@ def test_remote_pull_subdirs(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_pull, ["build", "dist"])
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert mock_run.call_count == 2
     mock_run.assert_has_calls(
@@ -1189,7 +1208,8 @@ def test_remote_delete(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_delete)
 
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     mock_run.assert_called_once_with(
         ["ssh", "-tKq", "-o", "BatchMode=yes", TEST_HOST, f"rm -rf {shlex.quote(TEST_DIR)}"],
@@ -1267,7 +1287,8 @@ def test_stream_changes(mock_run, tmp_workspace):
     runner = CliRunner()
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote, ["--stream-changes", "echo test"])
-        if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+        if result.exit_code and result.exc_info:
+            traceback.print_exception(*result.exc_info)
         assert result.exit_code == 0
 
 
@@ -1296,5 +1317,6 @@ round-trip min/avg/max/stddev = 15.121/18.821/25.608/4.805 ms
 
     explain_run.assert_has_calls([call(["ping", "-c", "10", "test-host1.example.com"], capture_output=True, text=True)])
     explain_run.assert_has_calls([call(["ping", "-c", "1", "test-host1.example.com"], capture_output=True, text=True)])
-    if result.exit_code and result.exc_info: traceback.print_exception(*result.exc_info)
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0

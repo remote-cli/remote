@@ -231,7 +231,16 @@ cd {shell_quote(relative_path)}
             dst = f"{self.remote.host}:{dst_path.parent}/"
 
             extra_args = ["--rsync-path", f"mkdir -p {shell_quote(dst_path.parent)} && rsync"]
-            rsync(src, dst, self.get_ssh_for_rsync(), info=info, verbose=verbose, dry_run=dry_run, extra_args=extra_args, delete=True)
+            rsync(
+                src,
+                dst,
+                self.get_ssh_for_rsync(),
+                info=info,
+                verbose=verbose,
+                dry_run=dry_run,
+                extra_args=extra_args,
+                delete=True,
+            )
             return
 
         src = f"{self.local_root}/"
