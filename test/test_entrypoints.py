@@ -1035,6 +1035,54 @@ def test_remote_push_mass(mock_run, tmp_workspace):
 
 
 @patch("remote.util.subprocess.run")
+def test_remote_push_subdirs(mock_run, tmp_workspace):
+    mock_run.return_value = Mock(returncode=0)
+    runner = CliRunner()
+
+    with cwd(tmp_workspace):
+        result = runner.invoke(entrypoints.remote_push, ["foobar/data", "baz/dist"])
+
+    assert result.exit_code == 0
+    assert mock_run.call_count == 2
+    mock_run.assert_has_calls(
+        [
+            call(
+                [
+                    "rsync",
+                    "-arlpmchz",
+                    "--copy-unsafe-links",
+                    "-e",
+                    "ssh -Kq -o BatchMode=yes",
+                    "--force",
+                    "-i",
+                    "--delete",
+                    f"{tmp_workspace}/foobar/data",
+                    f"{TEST_HOST}:{TEST_DIR}/foobar/",
+                ],
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+            ),
+            call(
+                [
+                    "rsync",
+                    "-arlpmchz",
+                    "--copy-unsafe-links",
+                    "-e",
+                    "ssh -Kq -o BatchMode=yes",
+                    "--force",
+                    "-i",
+                    "--delete",
+                    f"{tmp_workspace}/baz/dist",
+                    f"{TEST_HOST}:{TEST_DIR}/baz/",
+                ],
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+            ),
+        ]
+    )
+
+
+@patch("remote.util.subprocess.run")
 def test_remote_pull(mock_run, tmp_workspace):
     mock_run.return_value = Mock(returncode=0)
     runner = CliRunner()

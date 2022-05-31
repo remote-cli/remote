@@ -393,12 +393,18 @@ def remote_pull(dry_run: bool, verbose: bool, path: List[str], label: Optional[s
 @click.option("-m", "--mirror", is_flag=True, help="mirror local files on the remote host")
 @click.option("-v", "--verbose", is_flag=True, help="increase verbosity")
 @click.option("-l", "--label", help="use the host that has corresponding label for the remote execution")
+@click.argument("path", nargs=-1)
 @click.option(
     "--multi", is_flag=True, help="push files to all available remote workspaces instead of pushing to the default one"
 )
 @log_exceptions
-def remote_push(dry_run: bool, mirror: bool, verbose: bool, multi: bool, label: Optional[str]):
-    """Push local workspace files to the remote directory"""
+def remote_push(dry_run: bool, mirror: bool, verbose: bool, path: List[str], multi: bool, label: Optional[str]):
+    """Push local workspace files to the remote directory
+    Optionally push PATH instead of the whole workspace.
+
+    PATH is a path of file or directory to push relative to the remote workspace root.
+    All sync exclude rules will be omitted if PATH is provided.
+    """
 
     if verbose:
         logging.basicConfig(level=logging.INFO, format=BASE_LOGGING_FORMAT)
@@ -408,7 +414,11 @@ def remote_push(dry_run: bool, mirror: bool, verbose: bool, multi: bool, label: 
 
     workspaces = SyncedWorkspace.from_cwd_mass() if multi else [SyncedWorkspace.from_cwd(int_or_str_label(label))]
     for workspace in workspaces:
-        workspace.push(info=True, verbose=verbose, dry_run=dry_run, mirror=mirror)
+        if not path:
+            workspace.push(info=True, verbose=verbose, dry_run=dry_run, mirror=mirror)
+            continue
+        for subpath in path:
+            workspace.push(info=True, verbose=verbose, dry_run=dry_run, mirror=mirror, subpath=Path(subpath))
 
 
 @click.command(context_settings=DEFAULT_CONTEXT_SETTINGS)
