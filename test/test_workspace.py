@@ -127,6 +127,8 @@ def test_push_with_subdir(mock_run, workspace):
             "ssh -Kq -o BatchMode=yes",
             "--force",
             "--delete",
+            "--rsync-path",
+            "mkdir -p remote/dir/foo/bar && rsync",
             f"{workspace.local_root}/foo/bar/some-path",
             f"{workspace.remote.host}:{workspace.remote.directory}/foo/bar/",
         ],
