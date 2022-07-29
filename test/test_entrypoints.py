@@ -4,7 +4,9 @@ We only mock subprocess calls since we cannot do multi-host testing.
 Some of the test above don't verify much, but they at least ensure that all parts work well together.
 """
 import os
+import shlex
 import sys
+import traceback
 
 from contextlib import contextmanager
 from datetime import datetime
@@ -21,8 +23,8 @@ from remote.configuration.toml import WORKSPACE_CONFIG
 from remote.exceptions import RemoteExecutionError
 
 TEST_HOST = "test-host1.example.com"
-TEST_DIR = ".remotes/myproject"
-TEST_CONFIG = f"{TEST_HOST}:{TEST_DIR}"
+TEST_DIR = ".remotes/my project"
+TEST_CONFIG = f"{TEST_HOST}:{shlex.quote(TEST_DIR)}"
 
 
 @contextmanager
@@ -98,19 +100,21 @@ def test_validate_connection_string(connection, is_valid):
 @patch("remote.util.subprocess.run")
 @patch(
     "remote.configuration.toml.TomlConfigurationMedium.generate_remote_directory",
-    MagicMock(return_value=".remotes/myproject_foo"),
+    MagicMock(return_value=".remotes/my project_foo"),
 )
 def test_remote_init(mock_run, tmp_path):
     mock_run.return_value = Mock(returncode=0)
-    subdir = tmp_path / "myproject"
+    subdir = tmp_path / "my project"
     subdir.mkdir()
 
     runner = CliRunner()
     with cwd(subdir):
         result = runner.invoke(entrypoints.remote_init, ["test-host.example.com"])
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
-    assert "Created remote directory at test-host.example.com:.remotes/myproject_foo" in result.output
+    assert "Created remote directory at test-host.example.com:'.remotes/my project_foo'" in result.output
     assert "Remote is configured and ready to use" in result.output
 
     mock_run.assert_called_once_with(
@@ -126,7 +130,7 @@ def test_remote_init(mock_run, tmp_path):
         == """\
 [[hosts]]
 host = "test-host.example.com"
-directory = ".remotes/myproject_foo"
+directory = ".remotes/my project_foo"
 default = true
 supports_gssapi_auth = true
 
@@ -148,13 +152,15 @@ include = []
 @patch("remote.util.subprocess.run")
 def test_remote_init_with_dir(mock_run, tmp_path):
     mock_run.return_value = Mock(returncode=0)
-    subdir = tmp_path / "myproject"
+    subdir = tmp_path / "my project"
     subdir.mkdir()
 
     runner = CliRunner()
     with cwd(subdir):
         result = runner.invoke(entrypoints.remote_init, ["test-host.example.com:.path/test.dir/_test-dir/"])
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert (
         result.output
@@ -199,7 +205,7 @@ include = []
 @patch("remote.util.subprocess.run")
 def test_remote_init_gitignore(mock_run, tmp_path):
     mock_run.return_value = Mock(returncode=0)
-    subdir = tmp_path / "myproject"
+    subdir = tmp_path / "my project"
     subdir.mkdir()
     (subdir / ".git").mkdir()
 
@@ -207,6 +213,8 @@ def test_remote_init_gitignore(mock_run, tmp_path):
     with cwd(subdir):
         result = runner.invoke(entrypoints.remote_init, ["test-host.example.com:.path/test.dir/_test-dir/"])
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert ".remote*" in (subdir / ".gitignore").read_text()
 
@@ -214,7 +222,7 @@ def test_remote_init_gitignore(mock_run, tmp_path):
 @patch("remote.util.subprocess.run")
 def test_remote_init_gitignore_no_double_writing(mock_run, tmp_path):
     mock_run.return_value = Mock(returncode=0)
-    subdir = tmp_path / "myproject"
+    subdir = tmp_path / "my project"
     subdir.mkdir()
     (subdir / ".git").mkdir()
     (subdir / ".gitignore").write_text("some\nbuild\n.remote*\n.gradle\n")
@@ -223,6 +231,8 @@ def test_remote_init_gitignore_no_double_writing(mock_run, tmp_path):
     with cwd(subdir):
         result = runner.invoke(entrypoints.remote_init, ["test-host.example.com:.path/test.dir/_test-dir/"])
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert "some\nbuild\n.remote*\n.gradle\n" == (subdir / ".gitignore").read_text()
 
@@ -230,7 +240,7 @@ def test_remote_init_gitignore_no_double_writing(mock_run, tmp_path):
 @patch("remote.util.subprocess.run")
 def test_remote_init_fails_after_ssh_error(mock_run, tmp_path):
     mock_run.return_value = Mock(returncode=255)
-    subdir = tmp_path / "myproject"
+    subdir = tmp_path / "my project"
     subdir.mkdir()
 
     runner = CliRunner()
@@ -315,6 +325,8 @@ def test_remote_add_adds_host(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_add, ["host:directory"])
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert (tmp_workspace / CONFIG_FILE_NAME).exists()
     assert (tmp_workspace / CONFIG_FILE_NAME).read_text() == f"{TEST_CONFIG}\nhost:directory\n"
@@ -335,10 +347,12 @@ def test_remote_add_avoids_duplicates(mock_run, tmp_workspace):
     results = []
     with cwd(tmp_workspace):
         results.append(runner.invoke(entrypoints.remote_add, ["host:directory"]))
-        results.append(runner.invoke(entrypoints.remote_add, [TEST_CONFIG]))
+        results.append(runner.invoke(entrypoints.remote_add, shlex.split(TEST_CONFIG)))
         results.append(runner.invoke(entrypoints.remote_add, ["host:directory"]))
 
     for result in results:
+        if result.exit_code and result.exc_info:
+            traceback.print_exception(*result.exc_info)
         assert result.exit_code == 0
     assert (tmp_workspace / CONFIG_FILE_NAME).exists()
     assert (tmp_workspace / CONFIG_FILE_NAME).read_text() == f"{TEST_CONFIG}\nhost:directory\n"
@@ -365,7 +379,11 @@ def test_remote_ignore(tmp_workspace):
         # also check there is no duplication
         result_two = runner.invoke(entrypoints.remote_ignore, ["new*.txt", "other-pattern"])
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
+    if result_two.exit_code and result_two.exc_info:
+        traceback.print_exception(*result_two.exc_info)
     assert result_two.exit_code == 0
     assert (
         (tmp_workspace / IGNORE_FILE_NAME).read_text()
@@ -393,6 +411,8 @@ def test_remote_host(tmp_workspace):
         # Check that result changes if we change host
         runner.invoke(entrypoints.remote_set, ["2"])
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert result.output == f"{TEST_HOST}\n"
 
@@ -422,6 +442,8 @@ def test_remote(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote, ["echo test >> .file"])
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert mock_run.call_count == 3
     mock_run.assert_has_calls(
@@ -436,7 +458,7 @@ def test_remote(mock_run, tmp_workspace):
                     "--force",
                     "--delete",
                     "--rsync-path",
-                    "mkdir -p .remotes/myproject && rsync",
+                    "mkdir -p '.remotes/my project' && rsync",
                     "--include-from",
                     ANY,
                     "--exclude-from",
@@ -455,7 +477,7 @@ def test_remote(mock_run, tmp_workspace):
                     "BatchMode=yes",
                     TEST_HOST,
                     """\
-cd .remotes/myproject
+cd '.remotes/my project'
 if [ -f .remoteenv ]; then
   source .remoteenv
 fi
@@ -499,6 +521,8 @@ def test_remote_with_output_logging(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote, ["--log", "my_logs", "echo test >> .file"])
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert mock_run.call_count == 3
     mock_run.assert_has_calls(
@@ -513,7 +537,7 @@ def test_remote_with_output_logging(mock_run, tmp_workspace):
                     "--force",
                     "--delete",
                     "--rsync-path",
-                    "mkdir -p .remotes/myproject && rsync",
+                    "mkdir -p '.remotes/my project' && rsync",
                     "--include-from",
                     ANY,
                     "--exclude-from",
@@ -532,7 +556,7 @@ def test_remote_with_output_logging(mock_run, tmp_workspace):
                     "BatchMode=yes",
                     TEST_HOST,
                     """\
-cd .remotes/myproject
+cd '.remotes/my project'
 if [ -f .remoteenv ]; then
   source .remoteenv
 fi
@@ -584,6 +608,8 @@ def test_remote_mass(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote, ["--multi", "echo test >> .file"])
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert mock_run.call_count == 3
     mock_run.assert_has_calls(
@@ -598,7 +624,7 @@ def test_remote_mass(mock_run, tmp_workspace):
                     "--force",
                     "--delete",
                     "--rsync-path",
-                    "mkdir -p .remotes/myproject && rsync",
+                    "mkdir -p '.remotes/my project' && rsync",
                     "--include-from",
                     ANY,
                     "--exclude-from",
@@ -617,7 +643,7 @@ def test_remote_mass(mock_run, tmp_workspace):
                     "BatchMode=yes",
                     TEST_HOST,
                     """\
-cd .remotes/myproject
+cd '.remotes/my project'
 if [ -f .remoteenv ]; then
   source .remoteenv
 fi
@@ -684,6 +710,8 @@ directory = "{TEST_DIR}"
     with cwd(tmp_path):
         result = runner.invoke(entrypoints.remote, ["-l", label, "echo test >> .file"])
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert mock_run.call_count == 3
     mock_run.assert_has_calls(
@@ -698,7 +726,7 @@ directory = "{TEST_DIR}"
                     "--force",
                     "--delete",
                     "--rsync-path",
-                    "mkdir -p .remotes/myproject && rsync",
+                    "mkdir -p '.remotes/my project' && rsync",
                     "--include-from",
                     ANY,
                     "--exclude-from",
@@ -717,7 +745,7 @@ directory = "{TEST_DIR}"
                     "BatchMode=yes",
                     host,
                     """\
-cd .remotes/myproject
+cd '.remotes/my project'
 if [ -f .remoteenv ]; then
   source .remoteenv
 fi
@@ -782,7 +810,7 @@ def test_remote_execution_fail(mock_run, tmp_workspace):
                     "--force",
                     "--delete",
                     "--rsync-path",
-                    "mkdir -p .remotes/myproject && rsync",
+                    "mkdir -p '.remotes/my project' && rsync",
                     "--include-from",
                     ANY,
                     "--exclude-from",
@@ -801,7 +829,7 @@ def test_remote_execution_fail(mock_run, tmp_workspace):
                     "BatchMode=yes",
                     TEST_HOST,
                     """\
-cd .remotes/myproject
+cd '.remotes/my project'
 if [ -f .remoteenv ]; then
   source .remoteenv
 fi
@@ -853,7 +881,7 @@ def test_remote_sync_fail(mock_run, tmp_workspace):
             "--force",
             "--delete",
             "--rsync-path",
-            "mkdir -p .remotes/myproject && rsync",
+            "mkdir -p '.remotes/my project' && rsync",
             "--include-from",
             ANY,
             "--exclude-from",
@@ -874,6 +902,8 @@ def test_remote_quick(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_quick, ["echo", "test"])
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     mock_run.assert_called_once_with(
         [
@@ -883,7 +913,7 @@ def test_remote_quick(mock_run, tmp_workspace):
             "BatchMode=yes",
             TEST_HOST,
             """\
-cd .remotes/myproject
+cd '.remotes/my project'
 if [ -f .remoteenv ]; then
   source .remoteenv
 fi
@@ -925,7 +955,7 @@ def test_remote_quick_execution_fail(mock_run, tmp_workspace):
             "BatchMode=yes",
             TEST_HOST,
             """\
-cd .remotes/myproject
+cd '.remotes/my project'
 if [ -f .remoteenv ]; then
   source .remoteenv
 fi
@@ -947,6 +977,8 @@ def test_remote_push(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_push)
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     mock_run.assert_called_once_with(
         [
@@ -959,7 +991,7 @@ def test_remote_push(mock_run, tmp_workspace):
             "-i",
             "--delete",
             "--rsync-path",
-            "mkdir -p .remotes/myproject && rsync",
+            "mkdir -p '.remotes/my project' && rsync",
             "--include-from",
             ANY,
             "--exclude-from",
@@ -982,6 +1014,8 @@ def test_remote_push_mass(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_push, "--multi")
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert mock_run.call_count == 2
     mock_run.assert_has_calls(
@@ -997,7 +1031,7 @@ def test_remote_push_mass(mock_run, tmp_workspace):
                     "-i",
                     "--delete",
                     "--rsync-path",
-                    "mkdir -p .remotes/myproject && rsync",
+                    "mkdir -p '.remotes/my project' && rsync",
                     "--include-from",
                     ANY,
                     "--exclude-from",
@@ -1035,6 +1069,60 @@ def test_remote_push_mass(mock_run, tmp_workspace):
 
 
 @patch("remote.util.subprocess.run")
+def test_remote_push_subdirs(mock_run, tmp_workspace):
+    mock_run.return_value = Mock(returncode=0)
+    runner = CliRunner()
+
+    with cwd(tmp_workspace):
+        result = runner.invoke(entrypoints.remote_push, ["foo bar/data", "baz/dist"])
+
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
+    assert result.exit_code == 0
+    assert mock_run.call_count == 2
+    mock_run.assert_has_calls(
+        [
+            call(
+                [
+                    "rsync",
+                    "-arlpmchz",
+                    "--copy-unsafe-links",
+                    "-e",
+                    "ssh -Kq -o BatchMode=yes",
+                    "--force",
+                    "-i",
+                    "--delete",
+                    "--rsync-path",
+                    f"mkdir -p '{TEST_DIR}/foo bar' && rsync",
+                    f"{tmp_workspace}/foo bar/data",
+                    f"{TEST_HOST}:{TEST_DIR}/foo bar/",
+                ],
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+            ),
+            call(
+                [
+                    "rsync",
+                    "-arlpmchz",
+                    "--copy-unsafe-links",
+                    "-e",
+                    "ssh -Kq -o BatchMode=yes",
+                    "--force",
+                    "-i",
+                    "--delete",
+                    "--rsync-path",
+                    f"mkdir -p '{TEST_DIR}/baz' && rsync",
+                    f"{tmp_workspace}/baz/dist",
+                    f"{TEST_HOST}:{TEST_DIR}/baz/",
+                ],
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+            ),
+        ]
+    )
+
+
+@patch("remote.util.subprocess.run")
 def test_remote_pull(mock_run, tmp_workspace):
     mock_run.return_value = Mock(returncode=0)
     runner = CliRunner()
@@ -1042,6 +1130,8 @@ def test_remote_pull(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_pull)
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     mock_run.assert_called_once_with(
         [
@@ -1070,6 +1160,8 @@ def test_remote_pull_subdirs(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_pull, ["build", "dist"])
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     assert mock_run.call_count == 2
     mock_run.assert_has_calls(
@@ -1116,9 +1208,11 @@ def test_remote_delete(mock_run, tmp_workspace):
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote_delete)
 
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
     mock_run.assert_called_once_with(
-        ["ssh", "-tKq", "-o", "BatchMode=yes", TEST_HOST, f"rm -rf {TEST_DIR}"],
+        ["ssh", "-tKq", "-o", "BatchMode=yes", TEST_HOST, f"rm -rf {shlex.quote(TEST_DIR)}"],
         stdin=sys.stdin,
         stdout=sys.stdout,
         stderr=sys.stderr,
@@ -1172,7 +1266,7 @@ def test_remote_port_forwarding_successful(
                 expected_port_forwarding,
                 "test-host1.example.com",
                 """\
-cd .remotes/myproject
+cd '.remotes/my project'
 if [ -f .remoteenv ]; then
   source .remoteenv
 fi
@@ -1193,6 +1287,8 @@ def test_stream_changes(mock_run, tmp_workspace):
     runner = CliRunner()
     with cwd(tmp_workspace):
         result = runner.invoke(entrypoints.remote, ["--stream-changes", "echo test"])
+        if result.exit_code and result.exc_info:
+            traceback.print_exception(*result.exc_info)
         assert result.exit_code == 0
 
 
@@ -1221,4 +1317,6 @@ round-trip min/avg/max/stddev = 15.121/18.821/25.608/4.805 ms
 
     explain_run.assert_has_calls([call(["ping", "-c", "10", "test-host1.example.com"], capture_output=True, text=True)])
     explain_run.assert_has_calls([call(["ping", "-c", "1", "test-host1.example.com"], capture_output=True, text=True)])
+    if result.exit_code and result.exc_info:
+        traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0

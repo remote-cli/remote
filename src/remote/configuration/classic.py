@@ -7,6 +7,7 @@ This configuration may have three meaningful files:
 """
 import os
 import re
+import shlex
 
 from collections import defaultdict
 from dataclasses import asdict
@@ -31,13 +32,15 @@ def _extract_shell_info(line: str, env_vars: List[str]) -> Tuple[str, str]:
     if not env_vars:
         return DEFAULT_SHELL, DEFAULT_SHELL_OPTIONS
 
+    # shlex.split replace the following blob:
+    """
     vars_string = env_vars[0]
 
     env = {}
     items = vars_string.split()
     index = 0
     while index < len(items):
-        key, value = items[index].split("=")
+        key, value = items[index].split("=", 1)
         if value.startswith("'") or value.startswith('"'):
             control_character = value[0]
             while index < len(items) - 1:
@@ -51,6 +54,8 @@ def _extract_shell_info(line: str, env_vars: List[str]) -> Tuple[str, str]:
         env[key] = value.strip("\"'")
 
         index += 1
+    """
+    env = dict(i.partition("=")[::2] for i in env_vars if "=" in i)
     print(env)
     # TODO: these shell types are not used in new implementation, need to remove them
     shell = env.pop("RSHELL", DEFAULT_SHELL)
@@ -64,8 +69,11 @@ def _extract_shell_info(line: str, env_vars: List[str]) -> Tuple[str, str]:
 
 def parse_config_line(line: str) -> RemoteConfig:
     # The line should look like this:
-    # sdas-ld2:.remotes/814f27f15f4e7a0842cada353dfc765a RSHELL=zsh
-    entry, *env_items = line.split(maxsplit=1)
+    # sdas-ld2:'.remotes/814f27f15f4e7a0842cada353dfc765a' RSHELL=zsh
+    try:
+        entry, *env_items = shlex.split(line)
+    except ValueError as e:
+        raise ConfigurationError(f"Config line {line} is corrupted. Cannot match quotes.") from e
     shell, shell_options = _extract_shell_info(line, env_items)
 
     parts = entry.split(":")
@@ -165,7 +173,7 @@ def load_ignores(workspace_root: Path) -> SyncRules:
 def save_general_config(config_file: Path, configurations: List[RemoteConfig]):
     with config_file.open("w") as f:
         for item in configurations:
-            f.write(f"{item.host}:{item.directory}")
+            f.write(f"{item.host}:{shlex.quote(str(item.directory))}")
             if item.shell != "sh":
                 f.write(f" RSHELL={item.shell}")
             if item.shell_options:
