@@ -322,7 +322,13 @@ exclude = ["build"]
             WorkspaceConfig(
                 root=Path("/root/foo/bar"),
                 configurations=[
-                    RemoteConfig(host="test-host.example.com", directory=Path("my-remotes/foo/bar",), label="bar"),
+                    RemoteConfig(
+                        host="test-host.example.com",
+                        directory=Path(
+                            "my-remotes/foo/bar",
+                        ),
+                        label="bar",
+                    ),
                     RemoteConfig(host="other-host.example.com", directory=Path("my-remotes/foo/bar"), label="foo"),
                 ],
                 default_configuration=1,

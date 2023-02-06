@@ -181,21 +181,40 @@ def test_ssh_gen_command(ssh, expected_cmd):
 
 
 @pytest.mark.parametrize(
-    "port, expected_command_run",
+    "port, control_master_none, expected_command_run",
     [
-        (None, ["ssh", "-tKq", "-o", "BatchMode=yes", "my-host.example.com", "exit 0"]),
+        (None, False, ["ssh", "-tKq", "-o", "BatchMode=yes", "my-host.example.com", "exit 0"]),
         (
             ForwardingOption(5000, 5005),
+            False,
             ["ssh", "-tKq", "-o", "BatchMode=yes", "-L", "5005:localhost:5000", "my-host.example.com", "exit 0"],
+        ),
+        (
+            ForwardingOption(5000, 5005),
+            True,
+            [
+                "ssh",
+                "-tKq",
+                "-o",
+                "BatchMode=yes",
+                "-L",
+                "5005:localhost:5000",
+                "-o",
+                "ControlMaster=no",
+                "-o",
+                "ControlPath=None",
+                "my-host.example.com",
+                "exit 0",
+            ],
         ),
     ],
 )
 @patch("remote.util.subprocess.run")
-def test_ssh_execute(mock_run, port, expected_command_run):
+def test_ssh_execute(mock_run, port, expected_command_run, control_master_none):
     mock_run.return_value = MagicMock(returncode=0)
 
     ssh = Ssh("my-host.example.com", local_port_forwarding=[port] if port else [])
-    code = ssh.execute("exit 0")
+    code = ssh.execute("exit 0", control_master_none=control_master_none)
 
     assert code == 0
     mock_run.assert_called_once_with(expected_command_run, stdout=sys.stdout, stderr=sys.stderr, stdin=sys.stdin)

@@ -348,8 +348,8 @@ git clone git@github.com:remote-cli/remote.git
 cd remote
 python3 -m venv env
 source env/bin/activate
-pip install -e .
-pip install -r test_requirements.txt
+pip install -e .pip install -r test
+_requirements.txt
 ```
 
 After it, you can open the code in any editor or IDE you like. If you prefer VSCode, the project contains the configuration file for it.

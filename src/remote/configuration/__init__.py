@@ -87,7 +87,11 @@ class WorkspaceConfig:
     @classmethod
     def empty(cls, root: Path) -> "WorkspaceConfig":
         return cls(
-            root=root, configurations=[], default_configuration=0, ignores=SyncRules.new(), includes=SyncRules.new(),
+            root=root,
+            configurations=[],
+            default_configuration=0,
+            ignores=SyncRules.new(),
+            includes=SyncRules.new(),
         )
 
     def add_remote_host(

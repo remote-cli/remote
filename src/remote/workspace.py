@@ -180,6 +180,7 @@ cd {shell_quote(relative_path)}
         ports: List[ForwardingOption] = [],
         stream_changes: bool = False,
         env: Optional[Dict[str, str]] = None,
+        control_master_none: bool = False,
     ) -> int:
         """Execute a command remotely using ssh
 
@@ -193,6 +194,7 @@ cd {shell_quote(relative_path)}
         :param verbose: use verbose logging when running ssh
         :param env: shell environment variables to set remotely before executing the command. This will be
                     ignored if simple is True
+        :param control_master_none: Set this value to True to set the SSH ControlMaster to no.
 
         :returns: an exit code of a remote process
         """
@@ -207,7 +209,7 @@ cd {shell_quote(relative_path)}
         with execute_on_file_change(
             local_root=self.local_root, callback=self.push, settle_time=1
         ) if stream_changes else contextlib.suppress():
-            return ssh.execute(formatted_command, raise_on_error)
+            return ssh.execute(formatted_command, raise_on_error, control_master_none)
 
     def push(
         self,
