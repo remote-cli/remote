@@ -137,13 +137,13 @@ class Ssh:
         self,
         command: str,
         raise_on_error: bool = True,
-        control_master_none: bool = False,
         extra_args: Optional[List[str]] = None,
     ) -> int:
         """Execute a command remotely using SSH and return it's exit code
 
         :param command: a command to execute
         :param raise_on_error: raise an exception is remote execution
+        :param extra_args: Extra arguments for execute function
 
         :returns: exit code of remote command or 255 if connection didn't go through
         """

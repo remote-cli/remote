@@ -194,7 +194,7 @@ cd {shell_quote(relative_path)}
         :param verbose: use verbose logging when running ssh
         :param env: shell environment variables to set remotely before executing the command. This will be
                     ignored if simple is True
-        :param control_master_none: Set this value to True to set the SSH ControlMaster to no.
+        :param extra_args: extra arguments for execute function
 
         :returns: an exit code of a remote process
         """
