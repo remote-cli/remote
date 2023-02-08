@@ -194,7 +194,7 @@ cd {shell_quote(relative_path)}
         :param verbose: use verbose logging when running ssh
         :param env: shell environment variables to set remotely before executing the command. This will be
                     ignored if simple is True
-        :param extra_args: extra arguments for execute function
+        :param extra_args: set of command arguments that will be used as CLI parameters for SSH command. This can be used to customise the SSH command.
 
         :returns: an exit code of a remote process
         """

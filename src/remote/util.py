@@ -143,7 +143,7 @@ class Ssh:
 
         :param command: a command to execute
         :param raise_on_error: raise an exception is remote execution
-        :param extra_args: Extra arguments for execute function
+        :param extra_args: Extra arguments for SSH command
 
         :returns: exit code of remote command or 255 if connection didn't go through
         """
