@@ -180,7 +180,7 @@ cd {shell_quote(relative_path)}
         ports: List[ForwardingOption] = [],
         stream_changes: bool = False,
         env: Optional[Dict[str, str]] = None,
-        control_master_none: bool = False,
+        extra_args: Optional[List[str]] = None,
     ) -> int:
         """Execute a command remotely using ssh
 
@@ -209,7 +209,7 @@ cd {shell_quote(relative_path)}
         with execute_on_file_change(
             local_root=self.local_root, callback=self.push, settle_time=1
         ) if stream_changes else contextlib.suppress():
-            return ssh.execute(formatted_command, raise_on_error, control_master_none)
+            return ssh.execute(formatted_command, raise_on_error, extra_args)
 
     def push(
         self,

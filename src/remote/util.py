@@ -133,7 +133,13 @@ class Ssh:
         """Generate the base ssh command to execute (without host)"""
         return prepare_shell_command(self.generate_command())
 
-    def execute(self, command: str, raise_on_error: bool = True, control_master_none: bool = False) -> int:
+    def execute(
+        self,
+        command: str,
+        raise_on_error: bool = True,
+        control_master_none: bool = False,
+        extra_args: Optional[List[str]] = None,
+    ) -> int:
         """Execute a command remotely using SSH and return it's exit code
 
         :param command: a command to execute
@@ -143,8 +149,8 @@ class Ssh:
         """
         subprocess_command = self.generate_command()
 
-        if control_master_none:
-            subprocess_command.extend(("-o", "ControlMaster=no", "-o", "ControlPath=None"))
+        if extra_args:
+            subprocess_command.extend(extra_args)
 
         logger.info("Executing:\n%s %s <<EOS\n%sEOS", " ".join(subprocess_command), self.host, command)
         subprocess_command.extend((self.host, command))
