@@ -281,7 +281,10 @@ echo 'Hello World!'
 def test_execute_with_port_forwarding(mock_run, workspace):
     mock_run.return_value = MagicMock(returncode=0)
 
-    code = workspace.execute(["echo", "Hello World!"], ports=[ForwardingOption(5005, 5000)],)
+    code = workspace.execute(
+        ["echo", "Hello World!"],
+        ports=[ForwardingOption(5005, 5000)],
+    )
     mock_run.assert_called_once_with(
         [
             "ssh",
@@ -312,7 +315,10 @@ def test_execute_with_custom_port(mock_run, workspace):
     mock_run.return_value = MagicMock(returncode=0)
 
     workspace.remote.port = 4321
-    code = workspace.execute(["echo", "Hello World!"], ports=[ForwardingOption(5005, 5000, local_interface="0.0.0.0")],)
+    code = workspace.execute(
+        ["echo", "Hello World!"],
+        ports=[ForwardingOption(5005, 5000, local_interface="0.0.0.0")],
+    )
     mock_run.assert_called_once_with(
         [
             "ssh",
@@ -441,7 +447,10 @@ echo 'Hello World!'
 def test_execute_and_sync_with_port_forwarding(mock_run, workspace):
     mock_run.side_effect = [MagicMock(returncode=0), MagicMock(returncode=10), MagicMock(returncode=0)]
 
-    code = workspace.execute_in_synced_env(["echo", "Hello World!"], ports=[ForwardingOption(5005, 5000)],)
+    code = workspace.execute_in_synced_env(
+        ["echo", "Hello World!"],
+        ports=[ForwardingOption(5005, 5000)],
+    )
     mock_run.assert_has_calls(
         [
             call(

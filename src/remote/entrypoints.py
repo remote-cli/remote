@@ -350,7 +350,9 @@ If local port is not passed, the local port value would be set to <remote port> 
 @click.argument("command", nargs=-1, required=True)
 @log_exceptions
 def remote_quick(
-    command: List[str], port_args: List[str], label: Optional[str],
+    command: List[str],
+    port_args: List[str],
+    label: Optional[str],
 ):
     """Execute the COMMAND remotely, without syncing any files"""
     check_command(command)

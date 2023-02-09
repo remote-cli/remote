@@ -36,7 +36,8 @@ def explain(workspace: SyncedWorkspace, deep: bool, host_override: Optional[str]
     quick_exec_code = workspace.execute("test", simple=True, raise_on_error=False, verbose=True)
     if quick_exec_code == 255:
         click.secho(
-            "The remote host is unreachable or doesn't support passwordless connection", fg="red",
+            "The remote host is unreachable or doesn't support passwordless connection",
+            fg="red",
         )
         sys.exit(1)
 
@@ -48,7 +49,8 @@ def explain(workspace: SyncedWorkspace, deep: bool, host_override: Optional[str]
     execution_code = workspace.execute_in_synced_env(["Hello World"], verbose=True, dry_run=True)
     if execution_code != 0:
         click.secho(
-            "Execution cycle failed", fg="red",
+            "Execution cycle failed",
+            fg="red",
         )
         sys.exit(1)
 

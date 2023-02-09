@@ -13,7 +13,9 @@ class SyncedWorkSpaceHandler(PatternMatchingEventHandler):
     """Set has_changes when changes are notified by watchdog."""
 
     def __init__(
-        self, has_changes: Event, ignore_patterns: List[str] = None,
+        self,
+        has_changes: Event,
+        ignore_patterns: List[str] = None,
     ):
         super().__init__(ignore_patterns=ignore_patterns)
         self.has_changes = has_changes
