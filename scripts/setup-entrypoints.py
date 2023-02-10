@@ -17,7 +17,7 @@ def main():
     entry_point_env = PYOXIDIZER_ENTRYPOINT
     if len(sys.argv) > 2 and sys.argv[2] == "--shiv":
         entry_point_env = SHIV_ENTRYPOINT
-    resources = pkg_resources.get_entry_map("remote-exec", "console_scripts")
+    resources = pkg_resources.get_entry_map("remote-exec-api", "console_scripts")
     for name, entry in resources.items():
         file = output_dir / name
         if entry.module_name != "remote.entrypoints":
