@@ -1,7 +1,7 @@
 # Remote
 
 [![Code Quality](https://github.com/remote-cli/remote/workflows/Python%20Code%20Quality/badge.svg)](https://github.com/remote-cli/remote/actions?query=branch%3Amaster+workflow%3A%22Python+Code+Quality%22)
-[![pypi](https://img.shields.io/pypi/v/remote-exec.svg)](https://pypi.org/project/remote-exec)
+[![pypi](https://img.shields.io/pypi/v/remote-exec-api.svg)](https://pypi.org/project/remote-exec-api)
 [![versions](https://img.shields.io/pypi/pyversions/remote-exec.svg)](https://github.com/remote-cli/remote)
 [![license](https://img.shields.io/github/license/remote-cli/remote.svg)](https://github.com/remote-cli/remote/blob/master/LICENSE)
 

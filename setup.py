@@ -23,10 +23,10 @@ def get_long_description():
 
 
 setuptools.setup(
-    name="remote-exec",
+    name="remote-exec-api",
     version=get_version(),
-    url="https://github.com/shirshanka/remote",
-    author="Shirshanka Das",
+    url="https://github.com/remote-cli/remote",
+    author="Evgeny Barbashov",
     license="BSD-2-CLAUSE",
     description="A CLI to sync codebases and execute commands remotely",
     long_description=get_long_description(),
