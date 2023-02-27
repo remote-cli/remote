@@ -175,7 +175,7 @@ include_vcs_ignore_patterns = true
    * `use_relative_remote_paths` (optional, defaults to `false`)
      * If set to `false`, all the workspaces will be stored in the `remote_root` of the target host in a flat
        structure. Each directory will have a name like `<workspace_name>_<workspace_path_hash>`.
-     * If set to `false`, the remote path will be placed in the `remote_root` tree like it was placed in the user's
+     * If set to `true`, the remote path will be placed in the `remote_root` tree like it was placed in the user's
        home directory tree locally. Some examples:
        * If the local path is `/home/username/projects/work/project_name`, the remote path will be
          `/home/username/.remotes/projects/work/project_name`
