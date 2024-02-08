@@ -34,6 +34,7 @@ class ConnectionConfig(ConfigModel):
     directory: Optional[Path] = None
     default: bool = False
     label: Optional[str] = None
+    cmd_prefix: Optional[str] = None
     # True if remote host supports gssapi-* auth methods. Should de disable if it isn't because it might result
     # in connection hanging for some time before establishing
     # The default is True for backward compatibility, we might reconsider this in next major version
@@ -286,6 +287,7 @@ class TomlConfigurationMedium(ConfigurationMedium):
                     directory=connection.directory or self._generate_remote_directory_from_path(workspace_root),
                     supports_gssapi=connection.supports_gssapi_auth,
                     label=connection.label,
+                    cmd_prefix=connection.cmd_prefix,
                     port=connection.port,
                 )
             )
@@ -326,6 +328,7 @@ class TomlConfigurationMedium(ConfigurationMedium):
                     default=num == config.default_configuration,
                     supports_gssapi_auth=connection.supports_gssapi,
                     label=connection.label,
+                    cmd_prefix=connection.cmd_prefix,
                     port=connection.port,
                 )
             )

@@ -201,6 +201,7 @@ include_vcs_ignore_patterns = true
      methods. We recommend disabling it if the ssh connection to the host hangs for some time during establishing.
    * `default` (optional, defaults to `false`) - `true` if this host should be used by default
    * `label` (optional) - a text label that later can be used to identify the host when running the `remote` CLI.
+   * `cmd_prefix` (optional) - a string which is prefixed to all commands executed via the `remote` CLI. The prefix is **not** shell escaped.
 
 3. `[push]`, `[pull]`, and `[both]` blocks control what files are synced from local to a remote machine and back
    before and after the execution. These blocks are used when the workspace configuration doesn't overwrite them.
@@ -226,6 +227,7 @@ host = "linux-host.example.com"
 directory = ".remotes/workspace"
 label = "linux"
 supports_gssapi_auth = true
+cmd_prefix = "nice -n5"
 
 [[hosts]]
 host = "macos-host.example.com"
