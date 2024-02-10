@@ -202,9 +202,9 @@ include = ["configs/global"]
         hosts=[
             ConnectionConfig(host="test-host.example.com", directory=".remotes/workspace", default=False),
             ConnectionConfig(
-                host="other-host.example.com", 
-                directory=".remotes/other-workspace", 
-                default=True, 
+                host="other-host.example.com",
+                directory=".remotes/other-workspace",
+                default=True,
                 cmd_prefix="nice -n5"
             ),
         ],
