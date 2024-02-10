@@ -91,6 +91,7 @@ Invalid value in configuration file /root/.config/remote/defaults.toml:
 [[hosts]]
 host = "other-host.example.com"
 directory = ".remotes/other-workspace"
+cmd_prefix = "nice -n5"
 default = true
 
 [push]
@@ -180,6 +181,7 @@ directory = ".remotes/workspace"
 [[hosts]]
 host = "other-host.example.com"
 directory = ".remotes/other-workspace"
+cmd_prefix = "nice -n5"
 default = true
 
 [push]
@@ -199,7 +201,12 @@ include = ["configs/global"]
     assert config == LocalConfig(
         hosts=[
             ConnectionConfig(host="test-host.example.com", directory=".remotes/workspace", default=False),
-            ConnectionConfig(host="other-host.example.com", directory=".remotes/other-workspace", default=True),
+            ConnectionConfig(
+                host="other-host.example.com",
+                directory=".remotes/other-workspace",
+                default=True,
+                cmd_prefix="nice -n5"
+            ),
         ],
         push=SyncRulesConfig(exclude=["env", ".git"], include=["env"]),
         pull=SyncRulesConfig(exclude=["src/generated"]),
@@ -253,10 +260,12 @@ def test_load_local_config_no_file(tmp_path):
 [[hosts]]
 host = "other-host.example.com"
 directory = ".remotes/other-workspace"
+cmd_prefix = "nice -n5"
 
 [[extends.hosts]]
 host = "other-host.example.com"
 directory = ".remotes/other-workspace"
+cmd_prefix = "nice -n5"
 """,
             "Following fields are specified in for overwrite and extend in /root/.remote.toml file: hosts.",
         ),
@@ -269,6 +278,7 @@ remote_root = "my-remotes"
 [[extends.hosts]]
 host = "other-host.example.com"
 directory = ".remotes/other-workspace"
+cmd_prefix = "nice -n5"
 """,
             """\
 Invalid value in configuration file /root/.remote.toml:
@@ -829,6 +839,7 @@ def test_medium_is_workspace_root(mock_home):
                         directory=Path(".remotes/other-workspace"),
                         supports_gssapi=False,
                         label="bar",
+                        cmd_prefix="nice -n5",
                     ),
                 ],
                 default_configuration=1,
@@ -847,6 +858,7 @@ host = "other-host.example.com"
 directory = ".remotes/other-workspace"
 default = true
 label = "bar"
+cmd_prefix = "nice -n5"
 supports_gssapi_auth = false
 
 [push]

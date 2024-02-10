@@ -58,7 +58,7 @@ class SyncedWorkspace:
         working_dir = working_dir.relative_to(config.root)
         if remote_host_id is None:
             index = config.default_configuration
-        elif type(remote_host_id) == str:
+        elif isinstance(remote_host_id, str):
             index = next(
                 (
                     index
@@ -120,6 +120,9 @@ class SyncedWorkspace:
         env_variables = "\n".join([f"export {shell_quote(k)}={shell_quote(env[k])}" for k in sorted(env.keys())])
         if env_variables:
             env_variables += "\n"
+
+        if self.remote.cmd_prefix is not None:
+            command = f"{self.remote.cmd_prefix} {command}"
 
         return f"""\
 cd {shell_quote(self.remote.directory)}
