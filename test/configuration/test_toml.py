@@ -201,7 +201,12 @@ include = ["configs/global"]
     assert config == LocalConfig(
         hosts=[
             ConnectionConfig(host="test-host.example.com", directory=".remotes/workspace", default=False),
-            ConnectionConfig(host="other-host.example.com", directory=".remotes/other-workspace", default=True, cmd_prefix="nice -n5"),
+            ConnectionConfig(
+                host="other-host.example.com", 
+                directory=".remotes/other-workspace", 
+                default=True, 
+                cmd_prefix="nice -n5"
+            ),
         ],
         push=SyncRulesConfig(exclude=["env", ".git"], include=["env"]),
         pull=SyncRulesConfig(exclude=["src/generated"]),
