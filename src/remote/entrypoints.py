@@ -154,10 +154,11 @@ def remote_init(connection: str):
 
     with gitignore.open("a") as f:
         f.write("\n")
-        f.write(".remote*")
-        f.write("\n")
+        f.write(".remote.toml\n")
+        f.write(".remoteenv\n")
 
-    click.echo("Added '.remote*' to .gitignore")
+    click.echo("Added '.remote.toml' to .gitignore")
+    click.echo("Added '.remoteenv' to .gitignore")
 
 
 @click.command(context_settings=DEFAULT_CONTEXT_SETTINGS)
