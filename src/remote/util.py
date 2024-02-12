@@ -180,9 +180,9 @@ def rsync(
     dry_run: bool = False,
     delete: bool = False,
     mirror: bool = False,
-    excludes: List[str] = None,
-    includes: List[str] = None,
-    extra_args: List[str] = None,
+    excludes: Optional[List[str]] = None,
+    includes: Optional[List[str]] = None,
+    extra_args: Optional[List[str]] = None,
     communication=CommunicationOptions(),
 ):
     """Run rsync to sync files from src into dst
