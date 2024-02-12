@@ -5,6 +5,7 @@ This configuration may have three meaningful files:
 .remoteindex (optional) - information about which connection from options above to use
 .remoteignore (optional) - information about files that should be ignore when syncing files
 """
+
 import os
 import re
 import shlex

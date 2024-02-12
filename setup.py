@@ -50,7 +50,7 @@ setuptools.setup(
         "Environment :: MacOS X",
         "Topic :: Software Development",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.9",
     package_dir={"": "src"},
     packages=["remote", "remote.configuration"],
     include_package_data=True,
@@ -73,10 +73,9 @@ setuptools.setup(
         ],
     },
     install_requires=[
-        'dataclasses; python_version<="3.6"',
-        "click>=7.1.1",
-        "toml>=0.10.0",
-        "pydantic>=1.5.1",
-        "watchdog>=0.10.3",
+        "click==8.1.7",
+        "toml==0.10.2",
+        "pydantic==2.6.1",
+        "watchdog==4.0.0",
     ],
 )

@@ -57,7 +57,7 @@ class SyncedWorkspace:
         """
         working_dir = working_dir.relative_to(config.root)
         if remote_host_id is None:
-            index = config.default_configuration
+            index: Optional[int] = config.default_configuration
         elif isinstance(remote_host_id, str):
             index = next(
                 (
@@ -71,6 +71,8 @@ class SyncedWorkspace:
                 raise InvalidRemoteHostLabel(f"The label {remote_host_id} cannot be found in the configuration")
         else:
             index = remote_host_id
+
+        assert index is not None
         remote_config = config.configurations[index]
         remote_working_dir = remote_config.directory / working_dir
 
@@ -210,9 +212,11 @@ cd {shell_quote(relative_path)}
 
         ssh = self.get_ssh(ports, verbose)
 
-        with execute_on_file_change(
-            local_root=self.local_root, callback=self.push, settle_time=1
-        ) if stream_changes else contextlib.suppress():
+        with (
+            execute_on_file_change(local_root=self.local_root, callback=self.push, settle_time=1)
+            if stream_changes
+            else contextlib.suppress()
+        ):
             return ssh.execute(formatted_command, raise_on_error, extra_args)
 
     def push(
@@ -221,7 +225,7 @@ cd {shell_quote(relative_path)}
         verbose: bool = False,
         dry_run: bool = False,
         mirror: bool = False,
-        subpath: Union[Path, str] = None,
+        subpath: Optional[Union[Path, str]] = None,
     ) -> None:
         """Push local workspace files to remote directory
 
@@ -269,7 +273,11 @@ cd {shell_quote(relative_path)}
         )
 
     def pull(
-        self, info: bool = False, verbose: bool = False, dry_run: bool = False, subpath: Union[Path, str] = None
+        self,
+        info: bool = False,
+        verbose: bool = False,
+        dry_run: bool = False,
+        subpath: Optional[Union[Path, str]] = None,
     ) -> None:
         """Pull remote files to local workspace
 

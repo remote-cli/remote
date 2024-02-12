@@ -3,13 +3,14 @@ This module contains the medium for toml-based config that consists of global an
 
 See the README.md file for details
 """
+
 import re
 
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, List, MutableMapping, Optional, Type, TypeVar, Union
 
-import toml
+import toml  # type: ignore
 
 from pydantic import BaseModel, Field, ValidationError, validator
 
@@ -126,7 +127,7 @@ def _load_file(cls: Type[T], path: Path) -> T:
     _backward_compatible_sanitize(config, {"include_vsc_ignore_patterns": "include_vcs_ignore_patterns"})
 
     try:
-        return cls.parse_obj(config)
+        return cls.model_validate(config)
     except ValidationError as e:
         messages = []
         for err in e.errors():
@@ -162,7 +163,7 @@ def load_local_config(workspace_root: Path) -> LocalConfig:
 
     if config.extends is not None:
         duplicate_fields = []
-        for field in WorkCycleConfig.__fields__:
+        for field in WorkCycleConfig.model_fields:
             if getattr(config, field) and getattr(config.extends, field):
                 duplicate_fields.append(field)
 
@@ -265,12 +266,12 @@ class TomlConfigurationMedium(ConfigurationMedium):
         local_ignores_config = load_local_ignores_config(workspace_root)
 
         # We might accidentally modify config value, so we need to create a copy of it
-        global_config = self.global_config.copy()
+        global_config = self.global_config.model_copy()
         config_dict = {
             field: _merge_field(field, global_config, local_config, local_ignores_config)
-            for field in WorkCycleConfig.__fields__
+            for field in WorkCycleConfig.model_fields
         }
-        merged_config = WorkCycleConfig.parse_obj(config_dict)
+        merged_config = WorkCycleConfig.model_validate(config_dict)
 
         if merged_config.hosts is None:
             raise ConfigurationError("You need to provide at least one remote host to connect")

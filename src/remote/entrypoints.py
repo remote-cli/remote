@@ -181,9 +181,9 @@ def remote_ignore(ignore: List[str], push: bool, pull: bool):
     if not push and not pull:
         config.ignores.add(ignore)
     elif pull and not push:
-        config.ignores.pull.add(ignore)
+        config.ignores.pull.extend(ignore)
     elif push and not pull:
-        config.ignores.push.add(ignore)
+        config.ignores.push.extend(ignore)
     else:
         raise InvalidInputError("You cannot use both '--pull' and '--push' flags")
     config.ignores.trim()

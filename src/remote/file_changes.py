@@ -3,7 +3,7 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 from threading import Event, Thread
-from typing import Callable, List
+from typing import Any, Callable, Iterator, List, Optional
 
 from watchdog.events import FileSystemEvent, PatternMatchingEventHandler
 from watchdog.observers import Observer
@@ -15,7 +15,7 @@ class SyncedWorkSpaceHandler(PatternMatchingEventHandler):
     def __init__(
         self,
         has_changes: Event,
-        ignore_patterns: List[str] = None,
+        ignore_patterns: Optional[List[str]] = None,
     ):
         super().__init__(ignore_patterns=ignore_patterns)
         self.has_changes = has_changes
@@ -48,8 +48,8 @@ class ProcessEvents(Thread):
 
 @contextmanager
 def execute_on_file_change(
-    local_root: Path, callback: Callable[[], None], settle_time: float = 1, ignore_patterns: List[str] = None
-) -> None:
+    local_root: Path, callback: Callable[[], None], settle_time: float = 1, ignore_patterns: Optional[List[str]] = None
+) -> Iterator[Any]:
     """Execute callback whenever files change."""
     has_changes = Event()
     # Set up a worker thread to process the changes after the changes are settled as per the settle time.

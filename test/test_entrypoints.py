@@ -3,6 +3,7 @@ We only mock subprocess calls since we cannot do multi-host testing.
 
 Some of the test above don't verify much, but they at least ensure that all parts work well together.
 """
+
 import os
 import shlex
 import sys
@@ -216,7 +217,7 @@ def test_remote_init_gitignore(mock_run, tmp_path):
     if result.exit_code and result.exc_info:
         traceback.print_exception(*result.exc_info)
     assert result.exit_code == 0
-    assert ".remote*" in (subdir / ".gitignore").read_text()
+    assert ".remote.toml\n.remoteenv" in (subdir / ".gitignore").read_text()
 
 
 @patch("remote.util.subprocess.run")

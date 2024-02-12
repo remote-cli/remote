@@ -83,7 +83,7 @@ exclude = ["env", ".git"]
 """,
             """\
 Invalid value in configuration file /root/.config/remote/defaults.toml:
-  - hosts.0.default: value could not be parsed to a boolean\
+  - hosts.0.default: Input should be a valid boolean, unable to interpret input\
 """,
         ),
         (
@@ -99,7 +99,7 @@ exclude = ["env", ".git"]
 """,
             """\
 Invalid value in configuration file /root/.config/remote/defaults.toml:
-  - hosts: cannot specify directory in global host config\
+  - hosts: Assertion failed, cannot specify directory in global host config\
 """,
         ),
         (
@@ -114,7 +114,7 @@ exclude = ["env", ".git"]
 """,
             """\
 Invalid value in configuration file /root/.config/remote/defaults.toml:
-  - hosts.0.meow: extra fields not permitted\
+  - hosts.0.meow: Extra inputs are not permitted\
 """,
         ),
     ],
@@ -202,10 +202,7 @@ include = ["configs/global"]
         hosts=[
             ConnectionConfig(host="test-host.example.com", directory=".remotes/workspace", default=False),
             ConnectionConfig(
-                host="other-host.example.com",
-                directory=".remotes/other-workspace",
-                default=True,
-                cmd_prefix="nice -n5"
+                host="other-host.example.com", directory=".remotes/other-workspace", default=True, cmd_prefix="nice -n5"
             ),
         ],
         push=SyncRulesConfig(exclude=["env", ".git"], include=["env"]),
@@ -282,7 +279,7 @@ cmd_prefix = "nice -n5"
 """,
             """\
 Invalid value in configuration file /root/.remote.toml:
-  - general: extra fields not permitted\
+  - general: Extra inputs are not permitted\
 """,
         ),
     ],
