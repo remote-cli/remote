@@ -73,9 +73,9 @@ setuptools.setup(
         ],
     },
     install_requires=[
-        "click==8.1.7",
-        "toml==0.10.2",
-        "pydantic==2.6.1",
-        "watchdog==4.0.0",
+        "click>=8.1.7,<9",
+        "toml>=0.10.2,<0.11",
+        "pydantic>=2.6.1,<3",
+        "watchdog>=4.0.0,<5",
     ],
 )
